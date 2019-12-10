@@ -34,7 +34,7 @@ impl peach::Drawable for Rectangle {
             &tess::FillOptions::tolerance(0.05),
             &mut tess::BuffersBuilder::new(
                 vertex_buffers,
-                peach::PathColor([1.0, 0.33, 0.66, 1.0]),
+                peach::PathColor([1.0, 0.33, 0.66, 1.0].into()),
             ),
         )
         .unwrap();

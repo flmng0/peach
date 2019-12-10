@@ -7,6 +7,7 @@ edition = "2018"
 [dependencies]
 euclid = "0.20.6"
 lyon_tessellation = "0.14.2"
+shaderc = "0.6.1"
 wgpu = "0.4.0"
 winit = "0.20.0-alpha4"
 

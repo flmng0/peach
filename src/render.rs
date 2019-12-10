@@ -5,7 +5,9 @@ use winit::{dpi::PhysicalSize, window::Window};
 #[derive(Debug)]
 pub enum RendererError {
     AdapterRequestError,
-    ShaderCreateError(std::io::Error),
+    ShadercInitError,
+    ShaderCompileError(shaderc::Error),
+    ShaderReadError(std::io::Error),
 }
 
 /// TODO: Document `Renderer`
@@ -247,24 +249,47 @@ impl Renderer {
         indices.clear();
     }
 
-    fn init_shaders<'a>(
+    fn create_shader(
+        device: &wgpu::Device,
+        compiler: &mut shaderc::Compiler,
+        source: &str,
+        kind: shaderc::ShaderKind,
+        name: &str,
+    ) -> Result<wgpu::ShaderModule, RendererError> {
+        let binary = compiler
+            .compile_into_spirv(source, kind, name, "main", None)
+            .or_else(|err| Err(RendererError::ShaderCompileError(err)))?;
+
+        let cursor = std::io::Cursor::new(&binary.as_binary_u8()[..]);
+
+        let shader =
+            wgpu::read_spirv(cursor).or_else(|err| Err(RendererError::ShaderReadError(err)))?;
+
+        Ok(device.create_shader_module(&shader))
+    }
+
+    fn init_shaders(
         device: &wgpu::Device,
     ) -> Result<(wgpu::ShaderModule, wgpu::ShaderModule), RendererError> {
-        let vs_module = {
-            let source = include_bytes!("shaders/shader.vert.spv");
-            let shader = wgpu::read_spirv(std::io::Cursor::new(&source[..]))
-                .or_else(|err| Err(RendererError::ShaderCreateError(err)))?;
+        let mut compiler = shaderc::Compiler::new().ok_or(RendererError::ShadercInitError)?;
 
-            device.create_shader_module(&shader)
-        };
+        let vs_source = include_str!("shaders/shader.vert");
+        let vs_module = Self::create_shader(
+            device,
+            &mut compiler,
+            vs_source,
+            shaderc::ShaderKind::Vertex,
+            "shaders/shader.vert",
+        )?;
 
-        let fs_module = {
-            let source = include_bytes!("shaders/shader.frag.spv");
-            let shader = wgpu::read_spirv(std::io::Cursor::new(&source[..]))
-                .or_else(|err| Err(RendererError::ShaderCreateError(err)))?;
-
-            device.create_shader_module(&shader)
-        };
+        let fs_source = include_str!("shaders/shader.frag");
+        let fs_module = Self::create_shader(
+            device,
+            &mut compiler,
+            fs_source,
+            shaderc::ShaderKind::Fragment,
+            "shaders/shader.frag",
+        )?;
 
         Ok((vs_module, fs_module))
     }

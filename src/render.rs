@@ -72,8 +72,8 @@ impl Renderer {
         let swap_chain_desc = wgpu::SwapChainDescriptor {
             usage: wgpu::TextureUsage::OUTPUT_ATTACHMENT,
             format: wgpu::TextureFormat::Bgra8UnormSrgb,
-            width: physical.width.round() as u32,
-            height: physical.height.round() as u32,
+            width: physical.width.round() as _,
+            height: physical.height.round() as _,
             present_mode: wgpu::PresentMode::Vsync,
         };
 

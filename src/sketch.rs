@@ -36,6 +36,7 @@ impl From<RendererError> for SketchError {
 /// ```
 ///
 /// [`Sketch`]: struct.Sketch.html
+#[derive(Debug)]
 pub struct Config {
     /// Name of the sketch, which will be used for the
     /// window's title.
@@ -68,7 +69,7 @@ impl Default for Config {
 /// A `State` is passed to all methods of a [`Handler`]
 /// by value:
 ///
-/// ```
+/// ```no_run
 /// struct Example {
 ///     x: f32,
 /// }
@@ -79,6 +80,7 @@ impl Default for Config {
 ///     }
 /// }
 /// ```
+#[derive(Debug, PartialEq)]
 pub struct State {
     /// Frame count.
     pub frame: usize,
@@ -105,10 +107,7 @@ impl Sketch {
         let event_loop = EventLoop::new();
         let window = WindowBuilder::new()
             .with_title(config.name)
-            .with_inner_size(LogicalSize::new(
-                config.width as _,
-                config.height as _,
-            ))
+            .with_inner_size(LogicalSize::new(config.width as _, config.height as _))
             .build(&event_loop)
             .or_else(|err| Err(SketchError::WindowCreateError(err)))?;
 
@@ -149,22 +148,20 @@ impl Sketch {
                     handler.update(&state);
 
                     window.request_redraw();
-                }
+                },
                 Event::WindowEvent { event, .. } => match event {
                     WindowEvent::Resized(logical) => {
-                        let physical =
-                            logical.to_physical(window.hidpi_factor());
+                        let physical = logical.to_physical(window.hidpi_factor());
 
                         renderer.resize(physical);
-                    }
+                    },
                     WindowEvent::RedrawRequested => {
                         handler.draw(&state, &mut renderer);
                         renderer.finish();
-                    }
+                    },
                     WindowEvent::CursorMoved { position, .. } => {
-                        state.cursor =
-                            position.to_physical(window.hidpi_factor());
-                    }
+                        state.cursor = position.to_physical(window.hidpi_factor());
+                    },
                     // TODO: Handle all events, remove hard-coded escape-quit.
                     WindowEvent::KeyboardInput {
                         input:
@@ -176,10 +173,10 @@ impl Sketch {
                     }
                     | WindowEvent::CloseRequested => {
                         *control_flow = ControlFlow::Exit;
-                    }
-                    _ => {}
+                    },
+                    _ => {},
                 },
-                _ => {}
+                _ => {},
             }
         })
     }
@@ -192,5 +189,6 @@ pub trait Handler {
     fn draw(&mut self, state: &State, renderer: &mut Renderer);
 
     // TODO: Event callbacks for `Handler`.
-    // fn resized(&mut self, state: State, old: LogicalSize, new: LogicalSize);
+    // fn resized(&mut self, state: State, old: LogicalSize,
+    // new: LogicalSize);
 }

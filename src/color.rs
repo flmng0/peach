@@ -1,10 +1,10 @@
+#[repr(C)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 /// RGBA color structure represented by `f32`s. Within
 /// Peach, this structure is actually computed as SRGBA
 /// because of [`wgpu`].
 ///
 /// [`wgpu`]: https://crates.io/crates/wgpu
-#[repr(C)]
-#[derive(Debug, Copy, Clone, PartialEq)]
 pub struct Color {
     /// Red component.
     pub r: f32,

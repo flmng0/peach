@@ -1,21 +1,16 @@
 // use peach::prelude::*;
-
-// const TWO_PI: f64 = 2.0 * core::f64::consts::PI;
-
+//
 // fn main() {
-//     peach::run(draw);
+//     peach::run(draw, Config::default());
 // }
-
-// fn draw(sketch: &mut Sketch) {
-//     sketch.background(Color::Hex(0x282a36ff));
-
-//     let (mx, my) = sketch.cursor();
-//     let (cx, cy) = sketch.center();
-
-//     sketch.rotate(mx / sketch.width() * TWO_PI);
-
+//
+// fn draw(sketch: &mut Sketch, state: State) {
+//     sketch.background(Color::hex(0x282A36FF));
+//
+//     sketch.rotate(state.frame as f32 / 1000.0);
+//
 //     sketch.anchor(Anchor::Center);
-//     sketch.fill(Color::HSL(y % 360.0, 100.0, 100.0));
-//     sketch.rect(cx, cy, 100.0, 100.0);
+//     sketch.fill(Color::RED);
+//     sketch.rect(state.cursor, [100.0, 100.0].into());
 // }
 fn main() {}

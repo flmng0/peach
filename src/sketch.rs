@@ -1,37 +1,24 @@
-use crate::Point;
+use crate::Size;
 
-use std::time::Duration;
-use winit::{event::ModifiersState, window::Window};
+use winit::window::Window;
 
-pub struct State {
-    pub cursor: Point,
-    pub width: f32,
-    pub height: f32,
-    pub delta: Duration,
-    pub modifiers: ModifiersState,
+#[derive(Debug)]
+pub struct Sketch {
+    device: wgpu::Device,
+    queue: wgpu::Queue,
+
+    swap_chain_desc: wgpu::SwapChainDescriptor,
+    swap_chain: wgpu::SwapChain,
+
+    pipeline: wgpu::RenderPipeline,
 }
-
-impl State {
-    pub(crate) fn new(width: f32, height: f32) -> State {
-        State {
-            cursor: Point::zero(),
-            width,
-            height,
-            delta: Duration::new(0, 0),
-            modifiers: ModifiersState {
-                shift: false,
-                ctrl: false,
-                alt: false,
-                logo: false,
-            },
-        }
-    }
-}
-
-pub struct Sketch {}
 
 impl Sketch {
     pub(crate) fn new(_window: &Window) -> Self {
-        Self {}
+        unimplemented!();
     }
+
+    pub(crate) fn resize(&mut self, _size: Size) {}
+
+    pub(crate) fn finish(&mut self) {}
 }

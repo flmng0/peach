@@ -1,5 +1,5 @@
 #[repr(C)]
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Default, Copy, Clone, PartialEq)]
 /// RGBA color structure represented by `f32`s. Within
 /// Peach, this structure is actually computed as SRGBA
 /// because of [`wgpu`].
@@ -17,12 +17,29 @@ pub struct Color {
 }
 
 impl Color {
+    pub const TRANSPARENT: Color = Color::new(0.0, 0.0, 0.0, 0.0);
+    pub const BLACK: Color = Color::new(0.0, 0.0, 0.0, 1.0);
+    pub const WHITE: Color = Color::new(1.0, 1.0, 1.0, 1.0);
+
+    pub const RED: Color = Color::new(1.0, 0.0, 0.0, 1.0);
+    pub const YELLOW: Color = Color::new(1.0, 1.0, 0.0, 1.0);
+    pub const GREEN: Color = Color::new(0.0, 1.0, 0.0, 1.0);
+    pub const CYAN: Color = Color::new(0.0, 1.0, 1.0, 1.0);
+    pub const BLUE: Color = Color::new(0.0, 0.0, 1.0, 1.0);
+    pub const MAGENTA: Color = Color::new(1.0, 0.0, 1.0, 1.0);
+
     /// Create a new color, given individual RGBA values.
-    pub fn new(r: f32, g: f32, b: f32, a: f32) -> Color {
+    pub const fn new(r: f32, g: f32, b: f32, a: f32) -> Color {
         Color { r, g, b, a }
     }
 
-    /// Create the RGBA color from hex, provided as a u32.
+    /// Create a new color, given RGB values. For this
+    /// method, alpha is set to `1.0`.
+    pub const fn new_rgb(r: f32, g: f32, b: f32) -> Color {
+        Color { r, g, b, a: 1.0 }
+    }
+
+    /// Create the RGBA color from hex, provided as a `u32`.
     ///
     /// # Usage
     /// ```
@@ -43,7 +60,7 @@ impl Color {
     }
 
     /// Create the RGBA color from hex, with a constant
-    /// alpha value of 1.0.
+    /// alpha value of `1.0`.
     ///
     /// # Usage
     /// ```
@@ -63,6 +80,18 @@ impl Color {
     }
 }
 
+impl From<u32> for Color {
+    fn from(hex: u32) -> Color {
+        Color::hex(hex)
+    }
+}
+
+// impl Into<u32> for Color {
+//     fn into(self) -> u32 {
+
+//     }
+// }
+
 impl From<[f32; 4]> for Color {
     fn from(slice: [f32; 4]) -> Color {
         let [r, g, b, a] = slice;
@@ -76,6 +105,17 @@ impl Into<[f32; 4]> for Color {
         let Color { r, g, b, a } = self;
 
         [r, g, b, a]
+    }
+}
+
+impl Into<wgpu_native::Color> for Color {
+    fn into(self) -> wgpu_native::Color {
+        wgpu_native::Color {
+            r: self.r as _,
+            g: self.g as _,
+            b: self.b as _,
+            a: self.a as _,
+        }
     }
 }
 

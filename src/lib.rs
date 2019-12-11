@@ -5,8 +5,11 @@ pub mod sketch;
 pub mod state;
 
 pub use euclid;
-pub use lyon_tessellation as tess;
 pub use winit::event::{ModifiersState as Modifiers, MouseButton as Button, VirtualKeyCode as Key};
+
+pub(crate) mod vertex;
+
+// pub(crate) type VertexBuffers = tess::VertexBuffers<
 
 macro_rules! euclid_type {
     ($type:ident) => {
@@ -29,7 +32,7 @@ pub mod prelude {
     pub use crate::{
         color::Color,
         config::{Callbacks, Config},
-        sketch::Sketch,
+        sketch::{Anchor, Sketch},
         state::State,
         Button, Key, Modifiers, Point, Rect, Size, Transform, Vector,
     };

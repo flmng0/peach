@@ -54,6 +54,10 @@ where
         .framerate
         .map(|framerate| Duration::new(1, 0) / framerate as _);
 
+    if let Some(callback) = callbacks.setup {
+        callback(&mut sketch);
+    }
+
     // Event loop, doesn't return.
     event_loop.run(move |event, _, control_flow| match event {
         Event::EventsCleared => {
@@ -72,7 +76,8 @@ where
         }
         Event::WindowEvent { event, .. } => match event {
             WindowEvent::Resized(size) => {
-                let size = Size::new(size.width as _, size.height as _);
+                let physical = size.to_physical(window.hidpi_factor());
+                let size = Size::new(physical.width as _, physical.height as _);
 
                 sketch.resize(size);
                 state.resize(size);
@@ -96,7 +101,8 @@ where
                 modifiers,
                 ..
             } => {
-                let position = Point::new(position.x as _, position.y as _);
+                let physical = position.to_physical(window.hidpi_factor());
+                let position = Point::new(physical.x as _, physical.y as _);
 
                 state.mouse_moved(position);
                 state.modifiers = modifiers;

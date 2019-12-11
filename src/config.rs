@@ -2,6 +2,7 @@ use crate::{sketch::Sketch, state::State, Key, Point, Size};
 
 use std::fmt;
 
+pub type SetupFn = fn(&mut Sketch);
 /// Function signature for a key press or release callback.
 pub type KeyFn = fn(&mut Sketch, &State, Key);
 /// Function signature for a mouse or window motion
@@ -11,7 +12,12 @@ pub type MoveFn = fn(&mut Sketch, &State, Point);
 pub type SizeFn = fn(&mut Sketch, &State, Size);
 
 /// Event callbacks.
+///
+/// # TODO: Implement the remaining events.
+/// - Mouse button
+/// - Mouse wheel
 pub struct Callbacks {
+    pub setup: Option<SetupFn>,
     /// Callback for when a key is pressed.
     pub key_down: Option<KeyFn>,
     /// Callback for when a key is released.
@@ -27,6 +33,7 @@ pub struct Callbacks {
 impl Default for Callbacks {
     fn default() -> Self {
         Self {
+            setup: None,
             key_down: None,
             key_up: None,
             mouse_moved: None,
@@ -169,27 +176,9 @@ impl Config {
         self
     }
 
-    /// Sets the framerate for the config to
-    /// `Some(framerate)`.
-    ///
-    /// # See Also
-    /// - [`Config::without_framerate`][0].
-    ///
-    /// [0]: struct.Config.html#method.without_framerate
+    /// Sets the framerate for the configuration.
     pub fn with_framerate(mut self, framerate: usize) -> Self {
         self.framerate = Some(framerate);
-
-        self
-    }
-
-    /// Sets the framerate for the config to `None`.
-    ///
-    /// # See Also
-    /// - [`Config::with_framerate`][0].
-    ///
-    /// [0]: struct.Config.html#method.with_framerate
-    pub fn without_framerate(mut self) -> Self {
-        self.framerate = None;
 
         self
     }
@@ -204,6 +193,13 @@ impl Config {
     /// Sets the callbacks for the configuration.
     pub fn with_callbacks(mut self, callbacks: Callbacks) -> Self {
         self.callbacks = callbacks;
+
+        self
+    }
+
+    /// Sets the setup callback of the configuration.
+    pub fn with_setup(mut self, setup: SetupFn) -> Self {
+        self.callbacks.setup = Some(setup);
 
         self
     }

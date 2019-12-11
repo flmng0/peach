@@ -1,11 +1,16 @@
-pub mod color;
-pub mod config;
-pub mod run;
-pub mod sketch;
-
 pub use euclid;
 pub use lyon_tessellation as tess;
-pub use winit::event::{ModifiersState, MouseButton, VirtualKeyCode};
+pub use winit::dpi::{LogicalPosition, LogicalSize};
+
+pub mod color;
+pub mod drawable;
+pub mod render;
+pub mod sketch;
+
+pub use color::Color;
+pub use drawable::{Drawable, PathColor, Vertex, VertexBuffers};
+pub use render::{Renderer, RendererError};
+pub use sketch::{Config, Handler, Sketch, State};
 
 macro_rules! euclid_type {
     ($type:ident) => {

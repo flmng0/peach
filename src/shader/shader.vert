@@ -10,11 +10,13 @@ layout(location = 1) in vec4 color;
 layout(location = 0) out vec4 out_color;
 
 void main() {
-    gl_Position = /* transform * */ vec4(
-        // Convert screen coordinates to vulkan coordinates.
-        pos / size.xy * 2.0 - 1.0,
-        0.0,
-        1.0
+    // Apply transformation in screen coordinates.
+    vec4 transformed = transform * vec4(pos, 0.0, 1.0);
+
+    // Convert screen coordinates to vulkan coordinates.
+    gl_Position = vec4(
+        transformed.xy / size.xy * 2.0 - 1.0,
+        transformed.zw
     );
 
     out_color = color;

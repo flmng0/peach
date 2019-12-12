@@ -9,13 +9,17 @@ pub use winit::event::{ModifiersState as Modifiers, MouseButton as Button, Virtu
 
 pub(crate) mod vertex;
 
-// pub(crate) type VertexBuffers = tess::VertexBuffers<
-
 macro_rules! euclid_type {
     ($type:ident) => {
+        /// Type alias for a [`euclid::$type`][0].
+        ///
+        /// [0]: https://docs.rs/euclid/0.20.6/euclid/struct.$input.html
         pub type $type = euclid::default::$type<f32>;
     };
     ($output:ident, $input:ident) => {
+        /// Type alias for a [`euclid::$input`][0].
+        ///
+        /// [0]: https://docs.rs/euclid/0.20.6/euclid/struct.$input.html
         pub type $output = euclid::default::$input<f32>;
     };
 }

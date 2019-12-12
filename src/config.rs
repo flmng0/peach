@@ -1,27 +1,61 @@
-use crate::{sketch::Sketch, state::State, Key, Point, Size};
+use crate::{sketch::Sketch, state::State, Button, Key, Point, Size};
 
 use std::fmt;
 
+/// Function signature for a setup callback.
 pub type SetupFn = fn(&mut Sketch);
 /// Function signature for a key press or release callback.
+///
+/// # Parameters:
+/// - [`Key`][0]: Key that the event occurred for.
+///
+/// [0]: ../enum.Key.html
 pub type KeyFn = fn(&mut Sketch, &State, Key);
+/// Function signature for a mouse button callback.
+///
+/// # Parameters:
+/// - [`Button`][0]: Button that the event occurred for.
+///
+/// [0]: ../enum.Button.html
+pub type ButtonFn = fn(&mut Sketch, &State, Button);
+/// Function signature for a mouse wheel callback.
+///
+/// # Parameters:
+/// - `f32`: Vertical lines that were scrolled.
+pub type WheelFn = fn(&mut Sketch, &State, f32);
 /// Function signature for a mouse or window motion
 /// callback.
+///
+/// # Parameters:
+/// - [`Point`][0]: Position of the window/mouse cursor.
+///
+/// [0]: ../type.Point.html
 pub type MoveFn = fn(&mut Sketch, &State, Point);
 /// Function signature for a window resize callback.
+///
+/// # Parameters:
+/// - [`Size`][0]: Size of the window.
+///
+/// [0]: ../type.Size.html
 pub type SizeFn = fn(&mut Sketch, &State, Size);
 
-/// Event callbacks.
+/// Optoinal event callbacks.
 ///
-/// # TODO: Implement the remaining events.
-/// - Mouse button
-/// - Mouse wheel
+/// See the callback signature documentation for information
+/// about arguments.
 pub struct Callbacks {
+    /// Callback ran at start up.
     pub setup: Option<SetupFn>,
     /// Callback for when a key is pressed.
     pub key_down: Option<KeyFn>,
     /// Callback for when a key is released.
     pub key_up: Option<KeyFn>,
+    /// Callback for when a mouse button is pressed.
+    pub button_down: Option<ButtonFn>,
+    /// Callback for when a mouse button is released.
+    pub button_up: Option<ButtonFn>,
+    /// Callback for when the mouse wheel is moved.
+    pub mouse_wheel: Option<WheelFn>,
     /// Callback for when the mouse cursor is moved.
     pub mouse_moved: Option<MoveFn>,
     /// Callback for when the window is moved.
@@ -36,6 +70,9 @@ impl Default for Callbacks {
             setup: None,
             key_down: None,
             key_up: None,
+            button_down: None,
+            button_up: None,
+            mouse_wheel: None,
             mouse_moved: None,
             window_moved: None,
             window_resized: None,
@@ -128,9 +165,8 @@ impl Config {
 
     /// Sets the size for the config.
     ///
-    /// # See Also
-    /// - [`Config::with_width`][0].
-    /// - [`Config::with_height`][1].
+    /// See also: [`Config::with_width`][0],
+    /// [`Config::with_height`][1].
     ///
     /// [0]: struct.Config.html#method.with_width
     /// [1]: struct.Config.html#method.with_height
@@ -143,9 +179,8 @@ impl Config {
 
     /// Sets the width for the config.
     ///
-    /// # See Also
-    /// - [`Config::with_size`][0].
-    /// - [`Config::with_height`][1].
+    /// See also: [`Config::with_size`][0],
+    /// [`Config::with_height`][1].
     ///
     /// [0]: struct.Config.html#method.with_size
     /// [1]: struct.Config.html#method.with_height
@@ -157,9 +192,8 @@ impl Config {
 
     /// Sets the height for the config.
     ///
-    /// # See Also
-    /// - [`Config::with_size`][0].
-    /// - [`Config::with_width`][1].
+    /// See also: [`Config::with_size`][0],
+    /// [`Config::with_width`][1].
     ///
     /// [0]: struct.Config.html#method.with_size
     /// [1]: struct.Config.html#method.with_width
@@ -206,8 +240,7 @@ impl Config {
 
     /// Sets the key pressed callback of the configuration.
     ///
-    /// # See Also
-    /// - [`Config::with_callbacks`][0].
+    /// See also: [`Config::with_callbacks`][0].
     ///
     /// [0]: struct.Config.html#method.with_callbacks
     pub fn with_key_down(mut self, key_down: KeyFn) -> Self {
@@ -218,8 +251,7 @@ impl Config {
 
     /// Sets the key released callback of the configuration.
     ///
-    /// # See Also
-    /// - [`Config::with_callbacks`][0].
+    /// See also: [`Config::with_callbacks`][0].
     ///
     /// [0]: struct.Config.html#method.with_callbacks
     pub fn with_key_up(mut self, key_up: KeyFn) -> Self {
@@ -228,10 +260,44 @@ impl Config {
         self
     }
 
+    /// Sets the button pressed callback of the
+    /// configuration.
+    ///
+    /// See also: [`Config::with_callbacks`][0].
+    ///
+    /// [0]: struct.Config.html#method.with_callbacks
+    pub fn with_button_down(mut self, button_down: ButtonFn) -> Self {
+        self.callbacks.button_down = Some(button_down);
+
+        self
+    }
+
+    /// Sets the button released callback of the
+    /// configuration.
+    ///
+    /// See also: [`Config::with_callbacks`][0].
+    ///
+    /// [0]: struct.Config.html#method.with_callbacks
+    pub fn with_button_up(mut self, button_up: ButtonFn) -> Self {
+        self.callbacks.button_up = Some(button_up);
+
+        self
+    }
+
+    /// Sets the mouse wheel callback of the configuration.
+    ///
+    /// See also: [`Config::with_callbacks`][0].
+    ///
+    /// [0]: struct.Config.html#method.with_callbacks
+    pub fn with_mouse_wheel(mut self, mouse_wheel: WheelFn) -> Self {
+        self.callbacks.mouse_wheel = Some(mouse_wheel);
+
+        self
+    }
+
     /// Sets the mouse motion callback of the configuration.
     ///
-    /// # See Also
-    /// - [`Config::with_callbacks`][0].
+    /// See also: [`Config::with_callbacks`][0].
     ///
     /// [0]: struct.Config.html#method.with_callbacks
     pub fn with_mouse_moved(mut self, mouse_moved: MoveFn) -> Self {
@@ -243,8 +309,7 @@ impl Config {
     /// Sets the window motion callback of the
     /// configuration.
     ///
-    /// # See Also
-    /// - [`Config::with_callbacks`][0].
+    /// See also: [`Config::with_callbacks`][0].
     ///
     /// [0]: struct.Config.html#method.with_callbacks
     pub fn with_window_moved(mut self, window_moved: MoveFn) -> Self {
@@ -256,8 +321,7 @@ impl Config {
     /// Sets the window resize callback of the
     /// configuration.
     ///
-    /// # See Also
-    /// - [`Config::with_callbacks`][0].
+    /// See also: [`Config::with_callbacks`][0].
     ///
     /// [0]: struct.Config.html#method.with_callbacks
     pub fn with_window_resized(mut self, window_resized: SizeFn) -> Self {

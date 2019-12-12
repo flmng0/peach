@@ -9,10 +9,24 @@ use tess::{BuffersBuilder, FillOptions, LineCap, StrokeOptions};
 use winit::window::Window;
 
 #[derive(Debug)]
+/// Used in [`Sketch::anchor`][0]; describes the anchor
+/// point where all geometries are drawn from.
+///
+/// Default Value: `Anchor::TopLeft`.
+///
+/// # Applies To:
+/// - `rect`
+///
+/// [0]: struct.Sketch.html#method.anchor
 pub enum Anchor {
+    /// Place the top-left corner of geometries under the given position.
     TopLeft,
+    /// Place geometries in the center of the given position.
     Center,
+    /// Offset geometries by the given vector pixels.
     Offset(Vector),
+    /// Offset by the given percentage.
+    Percent(Vector),
 }
 
 impl Default for Anchor {
@@ -386,8 +400,38 @@ impl Sketch {
         self.draw_state.stroke_options.line_width = width;
     }
 
+    pub fn translate(&mut self, translation: Vector) {
+        let transform = &mut self.uniforms.transform;
+
+        *transform = transform.pre_translate(translation.to_3d());
+    }
+
+    // TODO Remove this
+    pub fn temp_clear(&mut self) {
+        self.uniforms.transform = Transform::identity();
+    }
+
+    pub fn rotate(&mut self, degrees: f32) {
+        let transform = &mut self.uniforms.transform;
+
+        let angle = euclid::Angle::degrees(degrees);
+
+        *transform = transform.pre_rotate(0.0, 0.0, 1.0, angle);
+    }
+
     pub fn anchor(&mut self, anchor: Anchor) {
         self.draw_state.anchor = anchor;
+    }
+
+    fn apply_anchor(&self, pos: Point, size: Size) -> Point {
+        match self.draw_state.anchor {
+            Anchor::TopLeft => pos,
+            Anchor::Center => pos - Vector::from(size / 2.0),
+            Anchor::Offset(offset) => pos - offset,
+            Anchor::Percent(offset) => {
+                pos - Vector::new(offset.x * size.width, offset.y * size.height)
+            }
+        }
     }
 
     pub fn rect<P, S>(&mut self, pos: P, size: S)
@@ -396,12 +440,7 @@ impl Sketch {
         S: Into<Size>,
     {
         let size = size.into();
-        let pos = pos.into();
-        let pos = match self.draw_state.anchor {
-            Anchor::TopLeft => pos,
-            Anchor::Center => pos - Vector::from(size / 2.0),
-            Anchor::Offset(offset) => pos - offset,
-        };
+        let pos = self.apply_anchor(pos.into(), size);
         let rect = Rect::new(pos, size);
 
         if let Some(fill_color) = self.draw_state.fill_color {

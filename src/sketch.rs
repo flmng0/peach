@@ -1,6 +1,6 @@
 use crate::{
     color::Color,
-    vertex::{Vertex, VertexBuffer},
+    vertex::{Vertex, VertexBuffer, WithIndexAndColor},
     Point, Rect, Size, Transform, Vector,
 };
 
@@ -8,7 +8,9 @@ use shaderc::{Compiler, ShaderKind};
 use tess::{BuffersBuilder, FillOptions, LineCap, StrokeOptions};
 use winit::window::Window;
 
-#[derive(Debug)]
+pub const MAX_STATE_STACK: usize = 16;
+
+#[derive(Debug, Copy, Clone)]
 /// Used in [`Sketch::anchor`][0]; describes the anchor
 /// point where all geometries are drawn from.
 ///
@@ -19,9 +21,11 @@ use winit::window::Window;
 ///
 /// [0]: struct.Sketch.html#method.anchor
 pub enum Anchor {
-    /// Place the top-left corner of geometries under the given position.
+    /// Place the top-left corner of geometries under the
+    /// given position.
     TopLeft,
-    /// Place geometries in the center of the given position.
+    /// Place geometries in the center of the given
+    /// position.
     Center,
     /// Offset geometries by the given vector pixels.
     Offset(Vector),
@@ -40,7 +44,7 @@ struct GpuState {
     device: wgpu::Device,
     queue: wgpu::Queue,
 
-    uniforms_buf: wgpu::Buffer,
+    transforms_buf: wgpu::Buffer,
     bind_group: wgpu::BindGroup,
 
     surface: wgpu::Surface,
@@ -50,9 +54,8 @@ struct GpuState {
     pipeline: wgpu::RenderPipeline,
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Copy, Clone)]
 struct DrawState {
-    clear_color: Option<Color>,
     fill_color: Option<Color>,
     stroke_color: Option<Color>,
 
@@ -62,12 +65,34 @@ struct DrawState {
     stroke_options: StrokeOptions,
 }
 
+impl Default for DrawState {
+    fn default() -> DrawState {
+        let fill_options = FillOptions::default().with_normals(false);
+
+        let stroke_options = StrokeOptions::default()
+            .with_start_cap(LineCap::Round)
+            .with_end_cap(LineCap::Round);
+
+        DrawState {
+            fill_color: Some(Color::WHITE),
+            stroke_color: Some(Color::BLACK),
+            anchor: Anchor::default(),
+            fill_options,
+            stroke_options,
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct Sketch {
     gpu_state: GpuState,
-    draw_state: DrawState,
 
-    uniforms: Uniforms,
+    size: Size,
+    clear_color: Option<Color>,
+    stack_index: u32,
+    draw_states: Vec<DrawState>,
+    transforms: Vec<Transform>,
+
     fill_buffer: VertexBuffer,
     stroke_buffer: VertexBuffer,
 }
@@ -99,11 +124,11 @@ impl Sketch {
             Size::new(physical.width as _, physical.height as _)
         };
 
-        // Size of the `Uniforms` buffer in bytes.
-        let size_of_uniforms = std::mem::size_of::<Uniforms>();
+        // Size of the `Transform` buffer in bytes.
+        let size_of_transforms = std::mem::size_of::<Transform>() * MAX_STATE_STACK;
 
-        let uniforms_buf = device.create_buffer(&wgpu::BufferDescriptor {
-            size: size_of_uniforms as _,
+        let transforms_buf = device.create_buffer(&wgpu::BufferDescriptor {
+            size: size_of_transforms as _,
             usage: wgpu::BufferUsage::UNIFORM | wgpu::BufferUsage::COPY_DST,
         });
 
@@ -119,8 +144,8 @@ impl Sketch {
             bindings: &[wgpu::Binding {
                 binding: 0,
                 resource: wgpu::BindingResource::Buffer {
-                    buffer: &uniforms_buf,
-                    range: 0..size_of_uniforms as _,
+                    buffer: &transforms_buf,
+                    range: 0..size_of_transforms as _,
                 },
             }],
         });
@@ -184,7 +209,8 @@ impl Sketch {
             depth_stencil_state: None,
             index_format: wgpu::IndexFormat::Uint32,
             // Vertex buffer layout, for Peach, this is Position taking up two floats (4 * 2 = 8
-            // bytes), and then Color taking up 4.
+            // bytes), and then Color taking up 4 floats (4 * 4 = 16), then the state stack index
+            // taking up 1 u32.
             vertex_buffers: &[wgpu::VertexBufferDescriptor {
                 stride: std::mem::size_of::<Vertex>() as _,
                 step_mode: wgpu::InputStepMode::Vertex,
@@ -199,6 +225,11 @@ impl Sketch {
                         format: wgpu::VertexFormat::Float4,
                         shader_location: 1,
                     },
+                    wgpu::VertexAttributeDescriptor {
+                        offset: 24,
+                        format: wgpu::VertexFormat::Uint,
+                        shader_location: 2,
+                    },
                 ],
             }],
             // MSAA sample count.
@@ -211,18 +242,20 @@ impl Sketch {
         };
         let pipeline = device.create_render_pipeline(&pipeline_descriptor);
 
-        let fill_options = FillOptions::default();
+        let mut draw_states = Vec::with_capacity(MAX_STATE_STACK);
+        let mut transforms = Vec::with_capacity(MAX_STATE_STACK);
 
-        let mut stroke_options = StrokeOptions::default();
-        stroke_options.start_cap = LineCap::Round;
-        stroke_options.end_cap = LineCap::Round;
+        for _ in 0..MAX_STATE_STACK {
+            draw_states.push(DrawState::default());
+            transforms.push(default_transform(size));
+        }
 
         Sketch {
             gpu_state: GpuState {
                 device,
                 queue,
 
-                uniforms_buf,
+                transforms_buf,
                 bind_group,
 
                 surface,
@@ -231,19 +264,19 @@ impl Sketch {
 
                 pipeline,
             },
-            draw_state: DrawState {
-                clear_color: Some(Color::WHITE),
-                fill_options,
-                stroke_options,
-                ..DrawState::default()
-            },
-            uniforms: Uniforms::new(size),
+            size,
+            clear_color: Some(Color::WHITE),
+            stack_index: 0,
+            draw_states,
+            transforms: Vec::with_capacity(MAX_STATE_STACK),
             fill_buffer: VertexBuffer::new(),
             stroke_buffer: VertexBuffer::new(),
         }
     }
 
     pub(crate) fn resize(&mut self, size: Size) {
+        self.size = size;
+
         let GpuState {
             device,
             surface,
@@ -264,14 +297,14 @@ impl Sketch {
                 GpuState {
                     device,
                     queue,
-                    uniforms_buf,
+                    transforms_buf,
                     bind_group,
                     swap_chain,
                     pipeline,
                     ..
                 },
-            draw_state: DrawState { clear_color, .. },
-            uniforms,
+            clear_color,
+            transforms,
             fill_buffer:
                 VertexBuffer {
                     vertices: fill_vertices,
@@ -290,16 +323,21 @@ impl Sketch {
             device.create_command_encoder(&wgpu::CommandEncoderDescriptor { todo: 0 });
 
         // Copy uniforms to GPU.
-        let transfer_uniform_buf = device
-            .create_buffer_mapped(1, wgpu::BufferUsage::COPY_SRC)
-            .fill_from_slice(&[*uniforms]);
+        let transfer_buf =
+            device.create_buffer_mapped(MAX_STATE_STACK, wgpu::BufferUsage::COPY_SRC);
+
+        for (i, transform) in transforms.iter().enumerate() {
+            transfer_buf.data[i] = *transform;
+        }
+
+        let size_of_transforms = std::mem::size_of::<Transform>() * MAX_STATE_STACK;
 
         encoder.copy_buffer_to_buffer(
-            &transfer_uniform_buf,
+            &transfer_buf.finish(),
             0,
-            &uniforms_buf,
+            &transforms_buf,
             0,
-            std::mem::size_of::<Uniforms>() as _,
+            size_of_transforms as _,
         );
 
         let frame = swap_chain.get_next_texture();
@@ -372,47 +410,63 @@ impl Sketch {
         stroke_indices.clear();
     }
 
+    fn draw_state(&mut self) -> &mut DrawState {
+        &mut self.draw_states[self.stack_index as usize]
+    }
+
+    pub fn transform(&mut self) -> &mut Transform {
+        &mut self.transforms[self.stack_index as usize]
+    }
+
     pub fn no_clear(&mut self) {
-        self.draw_state.clear_color = None;
+        self.clear_color = None;
     }
 
     pub fn clear<C: Into<Color>>(&mut self, color: C) {
-        self.draw_state.clear_color = Some(color.into());
+        self.clear_color = Some(color.into());
     }
 
     pub fn no_fill(&mut self) {
-        self.draw_state.fill_color = None;
+        self.draw_state().fill_color = None;
     }
 
     pub fn fill<C: Into<Color>>(&mut self, color: C) {
-        self.draw_state.fill_color = Some(color.into());
+        self.draw_state().fill_color = Some(color.into());
     }
 
     pub fn no_stroke(&mut self) {
-        self.draw_state.stroke_color = None;
+        self.draw_state().stroke_color = None;
     }
 
     pub fn stroke<C: Into<Color>>(&mut self, color: C) {
-        self.draw_state.stroke_color = Some(color.into());
+        self.draw_state().stroke_color = Some(color.into());
     }
 
     pub fn stroke_width(&mut self, width: f32) {
-        self.draw_state.stroke_options.line_width = width;
+        self.draw_state().stroke_options.line_width = width;
     }
 
     pub fn translate(&mut self, translation: Vector) {
-        let transform = &mut self.uniforms.transform;
+        let transform = self.transform();
 
         *transform = transform.pre_translate(translation.to_3d());
     }
 
-    // TODO Remove this
-    pub fn temp_clear(&mut self) {
-        self.uniforms.transform = Transform::identity();
+    pub fn push(&mut self) {
+        self.stack_index += 1;
+        self.draw_states.push(DrawState::default());
+
+        self.transforms.push(default_transform(self.size));
+    }
+
+    pub fn pop(&mut self) {
+        self.stack_index -= 1;
+        self.draw_states.pop();
+        self.transforms.pop();
     }
 
     pub fn rotate(&mut self, degrees: f32) {
-        let transform = &mut self.uniforms.transform;
+        let transform = self.transform();
 
         let angle = euclid::Angle::degrees(degrees);
 
@@ -420,11 +474,11 @@ impl Sketch {
     }
 
     pub fn anchor(&mut self, anchor: Anchor) {
-        self.draw_state.anchor = anchor;
+        self.draw_state().anchor = anchor;
     }
 
-    fn apply_anchor(&self, pos: Point, size: Size) -> Point {
-        match self.draw_state.anchor {
+    fn apply_anchor(&mut self, pos: Point, size: Size) -> Point {
+        match self.draw_state().anchor {
             Anchor::TopLeft => pos,
             Anchor::Center => pos - Vector::from(size / 2.0),
             Anchor::Offset(offset) => pos - offset,
@@ -443,43 +497,32 @@ impl Sketch {
         let pos = self.apply_anchor(pos.into(), size);
         let rect = Rect::new(pos, size);
 
-        if let Some(fill_color) = self.draw_state.fill_color {
+        let draw_state = self.draw_state().clone();
+
+        if let Some(fill_color) = draw_state.fill_color {
             tess::basic_shapes::fill_rectangle(
                 &rect,
-                &self.draw_state.fill_options,
-                &mut BuffersBuilder::new(&mut self.fill_buffer, fill_color),
+                &draw_state.fill_options,
+                &mut BuffersBuilder::new(
+                    &mut self.fill_buffer,
+                    WithIndexAndColor(self.stack_index, fill_color),
+                ),
             )
             .unwrap();
         }
 
-        if let Some(stroke_color) = self.draw_state.stroke_color {
+        if let Some(stroke_color) = draw_state.stroke_color {
             tess::basic_shapes::stroke_rectangle(
                 &rect,
-                &self.draw_state.stroke_options,
-                &mut BuffersBuilder::new(&mut self.stroke_buffer, stroke_color),
+                &draw_state.stroke_options,
+                &mut BuffersBuilder::new(
+                    &mut self.stroke_buffer,
+                    WithIndexAndColor(self.stack_index, stroke_color),
+                ),
             )
             .unwrap();
         }
     }
-}
-
-/// Generate a shader module from source code, given a
-/// compiler.
-fn create_shader(
-    device: &wgpu::Device,
-    compiler: &mut shaderc::Compiler,
-    source: &str,
-    name: &str,
-    kind: shaderc::ShaderKind,
-) -> wgpu::ShaderModule {
-    let binary = compiler
-        .compile_into_spirv(source, kind, name, "main", None)
-        .unwrap();
-
-    let cursor = std::io::Cursor::new(&binary.as_binary_u8()[..]);
-    let shader = wgpu::read_spirv(cursor).unwrap();
-
-    device.create_shader_module(&shader)
 }
 
 /// Initialize all required shader modules.
@@ -489,41 +532,47 @@ fn create_shader(
 fn init_shaders(device: &wgpu::Device) -> [wgpu::ShaderModule; 2] {
     let mut compiler = Compiler::new().unwrap();
 
-    let vs_source = include_str!("shader/shader.vert");
-    let vs_module = create_shader(
-        device,
-        &mut compiler,
-        vs_source,
-        "shader/shader.vert",
-        ShaderKind::Vertex,
-    );
+    let source = include_str!("shader/shader.vert");
+    let binary = compiler
+        .compile_into_spirv(
+            source,
+            ShaderKind::Vertex,
+            "shader/shader.vert",
+            "main",
+            None,
+        )
+        .unwrap();
+    let cursor = std::io::Cursor::new(&binary.as_binary_u8()[..]);
+    let shader = wgpu::read_spirv(cursor).unwrap();
 
-    let fs_source = include_str!("shader/shader.frag");
-    let fs_module = create_shader(
-        device,
-        &mut compiler,
-        fs_source,
-        "shader/shader.frag",
-        ShaderKind::Fragment,
-    );
+    let vs_module = device.create_shader_module(&shader);
+
+    let source = include_str!("shader/shader.frag");
+    let binary = compiler
+        .compile_into_spirv(
+            source,
+            ShaderKind::Vertex,
+            "shader/shader.frag",
+            "main",
+            None,
+        )
+        .unwrap();
+    let cursor = std::io::Cursor::new(&binary.as_binary_u8()[..]);
+    let shader = wgpu::read_spirv(cursor).unwrap();
+
+    let fs_module = device.create_shader_module(&shader);
 
     [vs_module, fs_module]
 }
 
-#[repr(C)]
-#[derive(Debug, Copy, Clone)]
-struct Uniforms {
-    pub(crate) transform: Transform,
-    pub(crate) size: Size,
-    padding: [f32; 2],
-}
+fn default_transform(size: Size) -> Transform {
+    let mut transform = Transform::identity();
 
-impl Uniforms {
-    pub(crate) fn new(size: Size) -> Uniforms {
-        Uniforms {
-            transform: Transform::identity(),
-            size,
-            padding: [0.0; 2],
-        }
-    }
+    transform.m11 = 2.0 / size.width;
+    transform.m22 = 2.0 / size.height;
+
+    transform.m14 = -1.0;
+    transform.m24 = -1.0;
+
+    transform
 }

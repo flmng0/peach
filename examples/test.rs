@@ -16,7 +16,6 @@ fn setup(sketch: &mut Sketch) {
 }
 
 fn draw(sketch: &mut Sketch, state: &State) {
-    sketch.temp_clear();
     sketch.translate(state.cursor.to_vector());
     sketch.rotate(45.0);
     sketch.rect(Point::zero(), Size::new(100.0, 100.0));

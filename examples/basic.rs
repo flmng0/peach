@@ -12,20 +12,16 @@ fn main() {
 fn setup(sketch: &mut Sketch) {
     sketch.anchor(Anchor::Center);
 
-    sketch.clear(0x282a36ff);
-    sketch.fill(Color::RED);
+    sketch.no_stroke();
+    sketch.fill(0x282a36ff);
 }
 
 fn draw(sketch: &mut Sketch, state: &State) {
-    sketch.push();
+    sketch.clear(Color::hsl(state.frame as f32, 1.0, 0.5));
 
-    sketch.fill(Color::BLUE);
+    let (cx, cy) = state.cursor.into();
+
     sketch.rotate(45.0);
-    sketch.translate(state.cursor.to_vector());
-    sketch.rect(Point::zero(), (100.0, 100.0).into());
-
-    sketch.pop();
-
-    sketch.translate(state.cursor.to_vector());
-    sketch.rect(Point::zero(), (100.0, 100.0).into());
+    sketch.translate(cx, cy);
+    sketch.rect(0.0, 0.0, 100.0, 100.0);
 }

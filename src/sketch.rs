@@ -441,16 +441,16 @@ impl Sketch {
         self.draw_state().stroke_color = Some(color.into());
     }
 
-    pub fn stroke_width(&mut self, width: f32) {
-        self.draw_state().stroke_options.line_width = width;
+    pub fn stroke_weight(&mut self, weight: f32) {
+        self.draw_state().stroke_options.line_width = weight;
     }
 
-    pub fn translate(&mut self, translation: Vector) {
+    pub fn translate(&mut self, x: f32, y: f32) {
         let transform = &mut self.draw_state().transform;
 
         let mut translate = Transform::identity();
-        translate.m41 = translation.x;
-        translate.m42 = translation.y;
+        translate.m41 = x;
+        translate.m42 = y;
 
         *transform = transform.post_transform(&translate);
     }
@@ -478,8 +478,11 @@ impl Sketch {
         }
     }
 
-    pub fn rect(&mut self, pos: Point, size: Size) {
-        let pos = self.apply_anchor(pos, size);
+    pub fn rect(&mut self, x: f32, y: f32, w: f32, h: f32) {
+        let point = Point::new(x, y);
+        let size = Size::new(w, h);
+
+        let pos = self.apply_anchor(point, size);
         let rect = Rect::new(pos, size);
 
         let draw_state = self.draw_state().clone();
@@ -509,55 +512,49 @@ impl Sketch {
         }
     }
 }
+/// Generate a shader module from source code, given a
+/// compiler.
+fn create_shader(
+    device: &wgpu::Device,
+    compiler: &mut shaderc::Compiler,
+    source: &str,
+    name: &str,
+    kind: shaderc::ShaderKind,
+) -> wgpu::ShaderModule {
+    let binary = compiler
+        .compile_into_spirv(source, kind, name, "main", None)
+        .unwrap();
+
+    let cursor = std::io::Cursor::new(&binary.as_binary_u8()[..]);
+    let shader = wgpu::read_spirv(cursor).unwrap();
+
+    device.create_shader_module(&shader)
+}
 
 /// Initialize all required shader modules.
 ///
 /// Outputs `[vertex shader module, fragment shader
 /// module]`.
 fn init_shaders(device: &wgpu::Device) -> [wgpu::ShaderModule; 2] {
-    // use shaderc::{Compiler, ShaderKind};
+    use shaderc::{Compiler, ShaderKind};
 
-    // let mut compiler = Compiler::new().unwrap();
+    let mut compiler = Compiler::new().unwrap();
 
-    // let source = include_str!("shader/shader.vert");
-    // let binary = compiler
-    //     .compile_into_spirv(
-    //         source,
-    //         ShaderKind::Vertex,
-    //         "shader/shader.vert",
-    //         "main",
-    //         None,
-    //     )
-    //     .unwrap();
-    // let cursor = std::io::Cursor::new(&binary.as_binary_u8()[..]);
-    // let shader = wgpu::read_spirv(cursor).unwrap();
+    let vs_module = create_shader(
+        device,
+        &mut compiler,
+        include_str!("shader/shader.vert"),
+        "shader/shader.vert",
+        ShaderKind::Vertex,
+    );
 
-    // let vs_module = device.create_shader_module(&shader);
-
-    // let source = include_str!("shader/shader.frag");
-    // let binary = compiler
-    //     .compile_into_spirv(
-    //         source,
-    //         ShaderKind::Vertex,
-    //         "shader/shader.frag",
-    //         "main",
-    //         None,
-    //     )
-    //     .unwrap();
-    // let cursor = std::io::Cursor::new(&binary.as_binary_u8()[..]);
-    // let shader = wgpu::read_spirv(cursor).unwrap();
-
-    // let fs_module = device.create_shader_module(&shader);
-
-    let source = include_bytes!("shader/shader.vert.spv");
-    let cursor = std::io::Cursor::new(&source[..]);
-    let shader = wgpu::read_spirv(cursor).unwrap();
-    let vs_module = device.create_shader_module(&shader);
-
-    let source = include_bytes!("shader/shader.frag.spv");
-    let cursor = std::io::Cursor::new(&source[..]);
-    let shader = wgpu::read_spirv(cursor).unwrap();
-    let fs_module = device.create_shader_module(&shader);
+    let fs_module = create_shader(
+        device,
+        &mut compiler,
+        include_str!("shader/shader.frag"),
+        "shader/shader.frag",
+        ShaderKind::Fragment,
+    );
 
     [vs_module, fs_module]
 }

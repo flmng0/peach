@@ -4,6 +4,8 @@
 /// Peach, this structure is actually computed as SRGBA
 /// because of [`wgpu`].
 ///
+/// Each component is in the range [0.0, 1.0].
+///
 /// [`wgpu`]: https://crates.io/crates/wgpu
 pub struct Color {
     /// Red component.
@@ -17,26 +19,75 @@ pub struct Color {
 }
 
 impl Color {
-    pub const TRANSPARENT: Color = Color::new(0.0, 0.0, 0.0, 0.0);
-    pub const BLACK: Color = Color::new(0.0, 0.0, 0.0, 1.0);
-    pub const WHITE: Color = Color::new(1.0, 1.0, 1.0, 1.0);
-
-    pub const RED: Color = Color::new(1.0, 0.0, 0.0, 1.0);
-    pub const YELLOW: Color = Color::new(1.0, 1.0, 0.0, 1.0);
-    pub const GREEN: Color = Color::new(0.0, 1.0, 0.0, 1.0);
-    pub const CYAN: Color = Color::new(0.0, 1.0, 1.0, 1.0);
-    pub const BLUE: Color = Color::new(0.0, 0.0, 1.0, 1.0);
-    pub const MAGENTA: Color = Color::new(1.0, 0.0, 1.0, 1.0);
+    pub const TRANSPARENT: Color = Color {
+        r: 0.0,
+        g: 0.0,
+        b: 0.0,
+        a: 0.0,
+    };
+    pub const BLACK: Color = Color {
+        r: 0.0,
+        g: 0.0,
+        b: 0.0,
+        a: 1.0,
+    };
+    pub const WHITE: Color = Color {
+        r: 1.0,
+        g: 1.0,
+        b: 1.0,
+        a: 1.0,
+    };
+    pub const RED: Color = Color {
+        r: 1.0,
+        g: 0.0,
+        b: 0.0,
+        a: 1.0,
+    };
+    pub const YELLOW: Color = Color {
+        r: 1.0,
+        g: 1.0,
+        b: 0.0,
+        a: 1.0,
+    };
+    pub const GREEN: Color = Color {
+        r: 0.0,
+        g: 1.0,
+        b: 0.0,
+        a: 1.0,
+    };
+    pub const CYAN: Color = Color {
+        r: 0.0,
+        g: 1.0,
+        b: 1.0,
+        a: 1.0,
+    };
+    pub const BLUE: Color = Color {
+        r: 0.0,
+        g: 0.0,
+        b: 1.0,
+        a: 1.0,
+    };
+    pub const MAGENTA: Color = Color {
+        r: 1.0,
+        g: 0.0,
+        b: 1.0,
+        a: 1.0,
+    };
 
     /// Create a new color, given individual RGBA values.
-    pub const fn new(r: f32, g: f32, b: f32, a: f32) -> Color {
+    pub fn new(r: f32, g: f32, b: f32, a: f32) -> Color {
+        let r = r.min(1.0).max(0.0);
+        let g = g.min(1.0).max(0.0);
+        let b = b.min(1.0).max(0.0);
+        let a = a.min(1.0).max(0.0);
+
         Color { r, g, b, a }
     }
 
     /// Create a new color, given RGB values. For this
     /// method, alpha is set to `1.0`.
-    pub const fn new_rgb(r: f32, g: f32, b: f32) -> Color {
-        Color { r, g, b, a: 1.0 }
+    pub fn new_rgb(r: f32, g: f32, b: f32) -> Color {
+        Color::new(r, g, b, 1.0)
     }
 
     /// Create the RGBA color from hex, provided as a `u32`.
@@ -77,6 +128,30 @@ impl Color {
             b: b as f32 / 255.0,
             a: 1.0,
         }
+    }
+
+    /// Create the RGBA from HSLA, where hue is in degrees
+    /// from `0.0` to `360.0`.
+    ///
+    /// If the hue is greater than `360.0`, then modulo is
+    /// applied.
+    pub fn hsla(h: f32, s: f32, l: f32, a: f32) -> Color {
+        // https://en.wikipedia.org/wiki/HSL_and_HSV#Alternative_HSL_to_RGB
+        //
+        // Replace `a` with `x` so it doesn't inerfere with alpha.
+        let h = h.rem_euclid(360.0);
+
+        let x = s * l.min(1.0 - l);
+        let f = |n: f32| {
+            let k = (n + h / 30.0).rem_euclid(12.0);
+            l - x * (k - 3.0).min(9.0 - k).min(1.0).max(-1.0)
+        };
+
+        Color::new(f(0.0), f(8.0), f(4.0), a)
+    }
+
+    pub fn hsl(h: f32, s: f32, l: f32) -> Color {
+        Color::hsla(h, s, l, 1.0)
     }
 }
 

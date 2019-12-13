@@ -7,6 +7,7 @@ pub mod state;
 pub use euclid;
 pub use winit::event::{ModifiersState as Modifiers, MouseButton as Button, VirtualKeyCode as Key};
 
+pub(crate) use lyon_tessellation as tess;
 pub(crate) mod vertex;
 
 macro_rules! euclid_type {

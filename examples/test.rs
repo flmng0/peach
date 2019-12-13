@@ -1,22 +1,15 @@
-use peach::prelude::*;
-
 fn main() {
-    peach::run(
-        draw,
-        Config::default()
-            .with_setup(setup)
-            .with_exit_key(Key::Escape),
-    );
-}
+    use euclid::default;
 
-fn setup(sketch: &mut Sketch) {
-    sketch.anchor(Anchor::Center);
+    type Point = default::Point2D<f32>;
+    type Vector = default::Vector2D<f32>;
+    type Transform = default::Transform3D<f32>;
 
-    sketch.fill(Color::RED);
-}
+    let point = Point::new(2.0, 3.0);
+    let transform = Transform::identity();
 
-fn draw(sketch: &mut Sketch, state: &State) {
-    sketch.translate(state.cursor.to_vector());
-    sketch.rotate(45.0);
-    sketch.rect(Point::zero(), Size::new(100.0, 100.0));
+    let vector = point.to_3d().to_vector();
+    let position = transform.transform_vector3d(vector).to_point().to_2d();
+
+    dbg!(point, position);
 }

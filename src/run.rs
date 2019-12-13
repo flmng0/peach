@@ -54,6 +54,7 @@ where
         .framerate
         .map(|framerate| Duration::new(1, 0) / framerate as _);
 
+    sketch.push();
     if let Some(callback) = callbacks.setup {
         callback(&mut sketch);
     }
@@ -69,11 +70,14 @@ where
 
             if should_update {
                 state.update();
+
+                sketch.push();
                 draw(&mut sketch, &state);
+                sketch.pop();
 
                 window.request_redraw();
             }
-        },
+        }
         Event::WindowEvent { event, .. } => match event {
             WindowEvent::Resized(size) => {
                 let physical = size.to_physical(window.hidpi_factor());
@@ -85,7 +89,7 @@ where
                 if let Some(callback) = callbacks.window_resized {
                     callback(&mut sketch, &state, size);
                 }
-            },
+            }
             WindowEvent::Moved(position) => {
                 let position = Point::new(position.x as _, position.y as _);
 
@@ -94,7 +98,7 @@ where
                 if let Some(callback) = callbacks.window_moved {
                     callback(&mut sketch, &state, position);
                 }
-            },
+            }
             WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
             WindowEvent::CursorMoved {
                 position,
@@ -110,7 +114,7 @@ where
                 if let Some(callback) = callbacks.mouse_moved {
                     callback(&mut sketch, &state, position);
                 }
-            },
+            }
             WindowEvent::KeyboardInput {
                 input:
                     KeyboardInput {
@@ -137,14 +141,12 @@ where
                 if let Some(callback) = key_callback {
                     callback(&mut sketch, &state, key);
                 }
-            },
+            }
             WindowEvent::RedrawRequested => {
-                sketch.push();
                 sketch.finish();
-                sketch.pop();
-            },
-            _ => {},
+            }
+            _ => {}
         },
-        _ => {},
+        _ => {}
     })
 }

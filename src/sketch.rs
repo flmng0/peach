@@ -1,14 +1,13 @@
 use crate::{
     color::Color,
-    vertex::{Vertex, VertexBuffer, WithIndexAndColor},
+    vertex::{Vertex, VertexBuffer, WithColorAndTransform},
     Point, Rect, Size, Transform, Vector,
 };
 
-use shaderc::{Compiler, ShaderKind};
-use tess::{BuffersBuilder, FillOptions, LineCap, StrokeOptions};
+use crate::tess::{BuffersBuilder, FillOptions, LineCap, StrokeOptions};
 use winit::window::Window;
 
-pub const MAX_STATE_STACK: usize = 16;
+pub const MAX_STATE_STACK: usize = 64;
 
 #[derive(Debug, Copy, Clone)]
 /// Used in [`Sketch::anchor`][0]; describes the anchor
@@ -63,6 +62,8 @@ struct DrawState {
 
     fill_options: FillOptions,
     stroke_options: StrokeOptions,
+
+    transform: Transform,
 }
 
 impl Default for DrawState {
@@ -79,6 +80,7 @@ impl Default for DrawState {
             anchor: Anchor::default(),
             fill_options,
             stroke_options,
+            transform: Transform::identity(),
         }
     }
 }
@@ -89,9 +91,9 @@ pub struct Sketch {
 
     size: Size,
     clear_color: Option<Color>,
-    stack_index: u32,
-    draw_states: Vec<DrawState>,
-    transforms: Vec<Transform>,
+
+    transform: Transform,
+    state_stack: Vec<DrawState>,
 
     fill_buffer: VertexBuffer,
     stroke_buffer: VertexBuffer,
@@ -125,7 +127,7 @@ impl Sketch {
         };
 
         // Size of the `Transform` buffer in bytes.
-        let size_of_transforms = std::mem::size_of::<Transform>() * MAX_STATE_STACK;
+        let size_of_transforms = std::mem::size_of::<Transform>();
 
         let transforms_buf = device.create_buffer(&wgpu::BufferDescriptor {
             size: size_of_transforms as _,
@@ -139,6 +141,7 @@ impl Sketch {
                 ty: wgpu::BindingType::UniformBuffer { dynamic: false },
             }],
         });
+
         let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
             layout: &bind_group_layout,
             bindings: &[wgpu::Binding {
@@ -195,7 +198,7 @@ impl Sketch {
             }),
             // Which type of primitive is used for tessellation, and constructing primitives on the
             // GPU.
-            primitive_topology: wgpu::PrimitiveTopology::TriangleStrip,
+            primitive_topology: wgpu::PrimitiveTopology::TriangleList,
             color_states: &[wgpu::ColorStateDescriptor {
                 format: wgpu::TextureFormat::Bgra8Unorm,
                 alpha_blend: wgpu::BlendDescriptor::REPLACE,
@@ -225,11 +228,6 @@ impl Sketch {
                         format: wgpu::VertexFormat::Float4,
                         shader_location: 1,
                     },
-                    wgpu::VertexAttributeDescriptor {
-                        offset: 24,
-                        format: wgpu::VertexFormat::Uint,
-                        shader_location: 2,
-                    },
                 ],
             }],
             // MSAA sample count.
@@ -242,13 +240,8 @@ impl Sketch {
         };
         let pipeline = device.create_render_pipeline(&pipeline_descriptor);
 
-        let mut draw_states = Vec::with_capacity(MAX_STATE_STACK);
-        let mut transforms = Vec::with_capacity(MAX_STATE_STACK);
-
-        for _ in 0..MAX_STATE_STACK {
-            draw_states.push(DrawState::default());
-            transforms.push(default_transform(size));
-        }
+        let state_stack = Vec::with_capacity(MAX_STATE_STACK);
+        let transform = default_transform(size);
 
         Sketch {
             gpu_state: GpuState {
@@ -266,9 +259,10 @@ impl Sketch {
             },
             size,
             clear_color: Some(Color::WHITE),
-            stack_index: 0,
-            draw_states,
-            transforms: Vec::with_capacity(MAX_STATE_STACK),
+
+            transform,
+            state_stack,
+
             fill_buffer: VertexBuffer::new(),
             stroke_buffer: VertexBuffer::new(),
         }
@@ -304,7 +298,7 @@ impl Sketch {
                     ..
                 },
             clear_color,
-            transforms,
+            transform,
             fill_buffer:
                 VertexBuffer {
                     vertices: fill_vertices,
@@ -323,14 +317,11 @@ impl Sketch {
             device.create_command_encoder(&wgpu::CommandEncoderDescriptor { todo: 0 });
 
         // Copy uniforms to GPU.
-        let transfer_buf =
-            device.create_buffer_mapped(MAX_STATE_STACK, wgpu::BufferUsage::COPY_SRC);
+        let transfer_buf = device.create_buffer_mapped(1, wgpu::BufferUsage::COPY_SRC);
 
-        for (i, transform) in transforms.iter().enumerate() {
-            transfer_buf.data[i] = *transform;
-        }
+        transfer_buf.data[0] = transform.to_column_major_array();
 
-        let size_of_transforms = std::mem::size_of::<Transform>() * MAX_STATE_STACK;
+        let size_of_transforms = std::mem::size_of::<Transform>();
 
         encoder.copy_buffer_to_buffer(
             &transfer_buf.finish(),
@@ -410,12 +401,20 @@ impl Sketch {
         stroke_indices.clear();
     }
 
-    fn draw_state(&mut self) -> &mut DrawState {
-        &mut self.draw_states[self.stack_index as usize]
+    pub fn push(&mut self) {
+        let draw_state = match self.state_stack.last() {
+            Some(draw_state) => draw_state.clone(),
+            None => DrawState::default(),
+        };
+        self.state_stack.push(draw_state);
     }
 
-    pub fn transform(&mut self) -> &mut Transform {
-        &mut self.transforms[self.stack_index as usize]
+    pub fn pop(&mut self) {
+        self.state_stack.pop();
+    }
+
+    fn draw_state(&mut self) -> &mut DrawState {
+        self.state_stack.last_mut().unwrap()
     }
 
     pub fn no_clear(&mut self) {
@@ -447,30 +446,21 @@ impl Sketch {
     }
 
     pub fn translate(&mut self, translation: Vector) {
-        let transform = self.transform();
+        let transform = &mut self.draw_state().transform;
 
-        *transform = transform.pre_translate(translation.to_3d());
-    }
+        let mut translate = Transform::identity();
+        translate.m41 = translation.x;
+        translate.m42 = translation.y;
 
-    pub fn push(&mut self) {
-        self.stack_index += 1;
-        self.draw_states.push(DrawState::default());
-
-        self.transforms.push(default_transform(self.size));
-    }
-
-    pub fn pop(&mut self) {
-        self.stack_index -= 1;
-        self.draw_states.pop();
-        self.transforms.pop();
+        *transform = transform.post_transform(&translate);
     }
 
     pub fn rotate(&mut self, degrees: f32) {
-        let transform = self.transform();
+        let transform = &mut self.draw_state().transform;
 
         let angle = euclid::Angle::degrees(degrees);
 
-        *transform = transform.pre_rotate(0.0, 0.0, 1.0, angle);
+        *transform = transform.post_rotate(0.0, 0.0, 1.0, angle);
     }
 
     pub fn anchor(&mut self, anchor: Anchor) {
@@ -488,36 +478,31 @@ impl Sketch {
         }
     }
 
-    pub fn rect<P, S>(&mut self, pos: P, size: S)
-    where
-        P: Into<Point>,
-        S: Into<Size>,
-    {
-        let size = size.into();
-        let pos = self.apply_anchor(pos.into(), size);
+    pub fn rect(&mut self, pos: Point, size: Size) {
+        let pos = self.apply_anchor(pos, size);
         let rect = Rect::new(pos, size);
 
         let draw_state = self.draw_state().clone();
 
         if let Some(fill_color) = draw_state.fill_color {
-            tess::basic_shapes::fill_rectangle(
+            crate::tess::basic_shapes::fill_rectangle(
                 &rect,
                 &draw_state.fill_options,
                 &mut BuffersBuilder::new(
                     &mut self.fill_buffer,
-                    WithIndexAndColor(self.stack_index, fill_color),
+                    WithColorAndTransform(fill_color, draw_state.transform),
                 ),
             )
             .unwrap();
         }
 
         if let Some(stroke_color) = draw_state.stroke_color {
-            tess::basic_shapes::stroke_rectangle(
+            crate::tess::basic_shapes::stroke_rectangle(
                 &rect,
                 &draw_state.stroke_options,
                 &mut BuffersBuilder::new(
                     &mut self.stroke_buffer,
-                    WithIndexAndColor(self.stack_index, stroke_color),
+                    WithColorAndTransform(stroke_color, draw_state.transform),
                 ),
             )
             .unwrap();
@@ -530,36 +515,48 @@ impl Sketch {
 /// Outputs `[vertex shader module, fragment shader
 /// module]`.
 fn init_shaders(device: &wgpu::Device) -> [wgpu::ShaderModule; 2] {
-    let mut compiler = Compiler::new().unwrap();
+    // use shaderc::{Compiler, ShaderKind};
 
-    let source = include_str!("shader/shader.vert");
-    let binary = compiler
-        .compile_into_spirv(
-            source,
-            ShaderKind::Vertex,
-            "shader/shader.vert",
-            "main",
-            None,
-        )
-        .unwrap();
-    let cursor = std::io::Cursor::new(&binary.as_binary_u8()[..]);
+    // let mut compiler = Compiler::new().unwrap();
+
+    // let source = include_str!("shader/shader.vert");
+    // let binary = compiler
+    //     .compile_into_spirv(
+    //         source,
+    //         ShaderKind::Vertex,
+    //         "shader/shader.vert",
+    //         "main",
+    //         None,
+    //     )
+    //     .unwrap();
+    // let cursor = std::io::Cursor::new(&binary.as_binary_u8()[..]);
+    // let shader = wgpu::read_spirv(cursor).unwrap();
+
+    // let vs_module = device.create_shader_module(&shader);
+
+    // let source = include_str!("shader/shader.frag");
+    // let binary = compiler
+    //     .compile_into_spirv(
+    //         source,
+    //         ShaderKind::Vertex,
+    //         "shader/shader.frag",
+    //         "main",
+    //         None,
+    //     )
+    //     .unwrap();
+    // let cursor = std::io::Cursor::new(&binary.as_binary_u8()[..]);
+    // let shader = wgpu::read_spirv(cursor).unwrap();
+
+    // let fs_module = device.create_shader_module(&shader);
+
+    let source = include_bytes!("shader/shader.vert.spv");
+    let cursor = std::io::Cursor::new(&source[..]);
     let shader = wgpu::read_spirv(cursor).unwrap();
-
     let vs_module = device.create_shader_module(&shader);
 
-    let source = include_str!("shader/shader.frag");
-    let binary = compiler
-        .compile_into_spirv(
-            source,
-            ShaderKind::Vertex,
-            "shader/shader.frag",
-            "main",
-            None,
-        )
-        .unwrap();
-    let cursor = std::io::Cursor::new(&binary.as_binary_u8()[..]);
+    let source = include_bytes!("shader/shader.frag.spv");
+    let cursor = std::io::Cursor::new(&source[..]);
     let shader = wgpu::read_spirv(cursor).unwrap();
-
     let fs_module = device.create_shader_module(&shader);
 
     [vs_module, fs_module]
@@ -568,8 +565,8 @@ fn init_shaders(device: &wgpu::Device) -> [wgpu::ShaderModule; 2] {
 fn default_transform(size: Size) -> Transform {
     let mut transform = Transform::identity();
 
-    transform.m11 = 2.0 / size.width;
-    transform.m22 = 2.0 / size.height;
+    transform.m11 = 1.0 / size.width * 2.0;
+    transform.m22 = 1.0 / size.height * 2.0;
 
     transform.m14 = -1.0;
     transform.m24 = -1.0;

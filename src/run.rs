@@ -3,7 +3,7 @@ use crate::{config::Config, sketch::Sketch, state::State, Point, Size};
 use std::time::{Duration, Instant};
 use winit::{
     dpi::LogicalSize,
-    event::{ElementState, Event, KeyboardInput, WindowEvent},
+    event::{ElementState, Event, KeyboardInput, MouseScrollDelta, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
     window::WindowBuilder,
 };
@@ -77,7 +77,7 @@ where
 
                 window.request_redraw();
             }
-        },
+        }
         Event::WindowEvent { event, .. } => match event {
             WindowEvent::Resized(size) => {
                 let physical = size.to_physical(window.hidpi_factor());
@@ -89,7 +89,7 @@ where
                 if let Some(callback) = callbacks.window_resized {
                     callback(&mut sketch, &state, size);
                 }
-            },
+            }
             WindowEvent::Moved(position) => {
                 let position = Point::new(position.x as _, position.y as _);
 
@@ -98,29 +98,52 @@ where
                 if let Some(callback) = callbacks.window_moved {
                     callback(&mut sketch, &state, position);
                 }
-            },
+            }
             WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
-            WindowEvent::CursorMoved {
-                position,
-                modifiers,
-                ..
-            } => {
+            WindowEvent::ModifiersChanged { modifiers } => state.modifiers = modifiers,
+            WindowEvent::MouseWheel { delta, .. } => {
+                let delta = match delta {
+                    MouseScrollDelta::LineDelta(_, y) => y,
+                    MouseScrollDelta::PixelDelta(logical) => {
+                        let physical = logical.to_physical(window.hidpi_factor());
+
+                        physical.y as f32
+                    }
+                };
+
+                if let Some(callback) = callbacks.mouse_wheel {
+                    callback(&mut sketch, &state, delta);
+                }
+            }
+            WindowEvent::CursorMoved { position, .. } => {
                 let physical = position.to_physical(window.hidpi_factor());
                 let position = Point::new(physical.x as _, physical.y as _);
 
                 state.mouse_moved(position);
-                state.modifiers = modifiers;
 
                 if let Some(callback) = callbacks.mouse_moved {
                     callback(&mut sketch, &state, position);
                 }
-            },
+            }
+            WindowEvent::MouseInput {
+                state: event_state,
+                button,
+                ..
+            } => {
+                let button_callback = match event_state {
+                    ElementState::Pressed => callbacks.button_down,
+                    ElementState::Released => callbacks.button_up,
+                };
+
+                if let Some(callback) = button_callback {
+                    callback(&mut sketch, &state, button);
+                }
+            }
             WindowEvent::KeyboardInput {
                 input:
                     KeyboardInput {
                         state: event_state,
                         virtual_keycode: Some(key),
-                        modifiers,
                         ..
                     },
                 ..
@@ -131,7 +154,6 @@ where
                         return;
                     }
                 }
-                state.modifiers = modifiers;
 
                 let key_callback = match event_state {
                     ElementState::Pressed => callbacks.key_down,
@@ -141,12 +163,12 @@ where
                 if let Some(callback) = key_callback {
                     callback(&mut sketch, &state, key);
                 }
-            },
+            }
             WindowEvent::RedrawRequested => {
                 sketch.finish();
-            },
-            _ => {},
+            }
+            _ => {}
         },
-        _ => {},
+        _ => {}
     })
 }

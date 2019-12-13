@@ -90,6 +90,36 @@ pub trait Drawing {
     fn fill_buffer(&mut self) -> &mut VertexBuffer;
     // TODO: Document
     fn stroke_buffer(&mut self) -> &mut VertexBuffer;
+    // TODO: Document
+    fn size(&self) -> Size;
+
+    // TODO: Document
+    fn clear(&mut self) {
+        let fill_buffer = self.fill_buffer();
+        fill_buffer.vertices.clear();
+        fill_buffer.indices.clear();
+
+        let stroke_buffer = self.stroke_buffer();
+        stroke_buffer.vertices.clear();
+        stroke_buffer.indices.clear();
+    }
+
+    // TODO: Document
+    fn background(&mut self, color: Color) {
+        let draw_state = *self.draw_state();
+
+        let rect = Rect::new(Point::zero(), self.size());
+
+        ba::fill_rectangle(
+            &rect,
+            &draw_state.fill_options,
+            &mut BuffersBuilder::new(
+                self.fill_buffer(),
+                WithColorAndTransform(color, Transform::identity()),
+            ),
+        )
+        .unwrap();
+    }
 
     // TODO: Document
     fn fill(&mut self, color: Color) {
@@ -137,7 +167,7 @@ pub trait Drawing {
         // Although, when 3D is implemented, euclids built-in
         // translate method can be used.
 
-        draw_state.transform = draw_state.transform.post_transform(&translation);
+        draw_state.transform = draw_state.transform.pre_transform(&translation);
     }
 
     // TODO: Document
@@ -149,7 +179,7 @@ pub trait Drawing {
             AngleMode::Radians => euclid::Angle::radians(angle),
         };
 
-        draw_state.transform = draw_state.transform.post_rotate(0.0, 0.0, 1.0, angle);
+        draw_state.transform = draw_state.transform.pre_rotate(0.0, 0.0, 1.0, angle);
     }
 
     // TODO: Document

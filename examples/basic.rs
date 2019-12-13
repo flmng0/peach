@@ -13,18 +13,18 @@ fn setup(sketch: &mut Sketch) {
     sketch.anchor(Anchor::Center);
 
     sketch.no_stroke();
-    sketch.fill(0x282a36ff.into());
 }
 
 fn draw(sketch: &mut Sketch, state: &State) {
+    sketch.background(0x282a36ff.into());
     let frame = state.frame as f32;
 
-    sketch.clear(Color::hsl(state.frame as f32, 1.0, 0.5));
+    sketch.fill(Color::hsl(state.frame as f32, 1.0, 0.5));
 
     let (cx, cy) = state.cursor.into();
 
-    sketch.rotate(state.frame as f32);
     sketch.translate(cx, cy);
+    sketch.rotate(state.frame as f32);
 
     let size = 50.0 + ((frame / 60.0).sin() + 1.0) * 50.0;
 

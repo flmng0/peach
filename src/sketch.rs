@@ -233,119 +233,113 @@ impl Sketch {
     }
 
     pub(crate) fn finish(&mut self) {
-        let Self {
-            gpu_state:
-                GpuState {
-                    device,
-                    queue,
-                    transforms_buf,
-                    bind_group,
-                    swap_chain,
-                    pipeline,
-                    ..
-                },
-            clear_color,
-            transform,
-            fill_buffer:
-                VertexBuffer {
-                    vertices: fill_vertices,
-                    indices: fill_indices,
-                },
-            stroke_buffer:
-                VertexBuffer {
-                    vertices: stroke_vertices,
-                    indices: stroke_indices,
-                },
-            ..
-        } = self;
-
-        // Command recorder.
-        let mut encoder =
-            device.create_command_encoder(&wgpu::CommandEncoderDescriptor { todo: 0 });
-
-        // Copy uniforms to GPU.
-        let transfer_buf = device.create_buffer_mapped(1, wgpu::BufferUsage::COPY_SRC);
-
-        transfer_buf.data[0] = transform.to_column_major_array();
-
-        let size_of_transforms = std::mem::size_of::<Transform>();
-
-        encoder.copy_buffer_to_buffer(
-            &transfer_buf.finish(),
-            0,
-            &transforms_buf,
-            0,
-            size_of_transforms as _,
-        );
-
-        let frame = swap_chain.get_next_texture();
-
-        // Fill render pass.
         {
-            let vbo = device
-                .create_buffer_mapped(fill_vertices.len(), wgpu::BufferUsage::VERTEX)
-                .fill_from_slice(&fill_vertices);
-            let ibo = device
-                .create_buffer_mapped(fill_indices.len(), wgpu::BufferUsage::INDEX)
-                .fill_from_slice(&fill_indices);
-
-            let mut rpass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                color_attachments: &[wgpu::RenderPassColorAttachmentDescriptor {
-                    attachment: &frame.view,
-                    resolve_target: None,
-                    load_op: wgpu::LoadOp::Clear,
-                    store_op: wgpu::StoreOp::Store,
-                    clear_color: match clear_color {
-                        Some(color) => (*color).into(),
-                        None => wgpu::Color::TRANSPARENT,
+            let Self {
+                gpu_state:
+                    GpuState {
+                        device,
+                        queue,
+                        transforms_buf,
+                        bind_group,
+                        swap_chain,
+                        pipeline,
+                        ..
                     },
-                }],
-                depth_stencil_attachment: None,
-            });
+                transform,
+                fill_buffer:
+                    VertexBuffer {
+                        vertices: fill_vertices,
+                        indices: fill_indices,
+                    },
+                stroke_buffer:
+                    VertexBuffer {
+                        vertices: stroke_vertices,
+                        indices: stroke_indices,
+                    },
+                ..
+            } = self;
 
-            rpass.set_pipeline(&pipeline);
-            rpass.set_bind_group(0, &bind_group, &[]);
-            rpass.set_index_buffer(&ibo, 0);
-            rpass.set_vertex_buffers(0, &[(&vbo, 0)]);
+            // Command recorder.
+            let mut encoder =
+                device.create_command_encoder(&wgpu::CommandEncoderDescriptor { todo: 0 });
 
-            rpass.draw_indexed(0..fill_indices.len() as _, 0, 0..1);
+            // Copy uniforms to GPU.
+            let transfer_buf = device.create_buffer_mapped(1, wgpu::BufferUsage::COPY_SRC);
+
+            transfer_buf.data[0] = transform.to_column_major_array();
+
+            let size_of_transforms = std::mem::size_of::<Transform>();
+
+            encoder.copy_buffer_to_buffer(
+                &transfer_buf.finish(),
+                0,
+                &transforms_buf,
+                0,
+                size_of_transforms as _,
+            );
+
+            let frame = swap_chain.get_next_texture();
+
+            // Fill render pass.
+            {
+                let vbo = device
+                    .create_buffer_mapped(fill_vertices.len(), wgpu::BufferUsage::VERTEX)
+                    .fill_from_slice(&fill_vertices);
+                let ibo = device
+                    .create_buffer_mapped(fill_indices.len(), wgpu::BufferUsage::INDEX)
+                    .fill_from_slice(&fill_indices);
+
+                let mut rpass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                    color_attachments: &[wgpu::RenderPassColorAttachmentDescriptor {
+                        attachment: &frame.view,
+                        resolve_target: None,
+                        load_op: wgpu::LoadOp::Load,
+                        store_op: wgpu::StoreOp::Store,
+                        clear_color: wgpu::Color::TRANSPARENT,
+                    }],
+                    depth_stencil_attachment: None,
+                });
+
+                rpass.set_pipeline(&pipeline);
+                rpass.set_bind_group(0, &bind_group, &[]);
+                rpass.set_index_buffer(&ibo, 0);
+                rpass.set_vertex_buffers(0, &[(&vbo, 0)]);
+
+                rpass.draw_indexed(0..fill_indices.len() as _, 0, 0..1);
+            }
+
+            // Stroke render pass.
+            {
+                let vbo = device
+                    .create_buffer_mapped(stroke_vertices.len(), wgpu::BufferUsage::VERTEX)
+                    .fill_from_slice(&stroke_vertices);
+                let ibo = device
+                    .create_buffer_mapped(stroke_indices.len(), wgpu::BufferUsage::INDEX)
+                    .fill_from_slice(&stroke_indices);
+
+                let mut rpass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                    color_attachments: &[wgpu::RenderPassColorAttachmentDescriptor {
+                        attachment: &frame.view,
+                        resolve_target: None,
+                        load_op: wgpu::LoadOp::Load,
+                        store_op: wgpu::StoreOp::Store,
+                        clear_color: wgpu::Color::TRANSPARENT,
+                    }],
+                    depth_stencil_attachment: None,
+                });
+
+                rpass.set_pipeline(&pipeline);
+                rpass.set_bind_group(0, &bind_group, &[]);
+                rpass.set_index_buffer(&ibo, 0);
+                rpass.set_vertex_buffers(0, &[(&vbo, 0)]);
+
+                rpass.draw_indexed(0..stroke_indices.len() as _, 0, 0..1);
+            }
+
+            queue.submit(&[encoder.finish()]);
         }
 
-        // Stroke render pass.
-        {
-            let vbo = device
-                .create_buffer_mapped(stroke_vertices.len(), wgpu::BufferUsage::VERTEX)
-                .fill_from_slice(&stroke_vertices);
-            let ibo = device
-                .create_buffer_mapped(stroke_indices.len(), wgpu::BufferUsage::INDEX)
-                .fill_from_slice(&stroke_indices);
-
-            let mut rpass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                color_attachments: &[wgpu::RenderPassColorAttachmentDescriptor {
-                    attachment: &frame.view,
-                    resolve_target: None,
-                    load_op: wgpu::LoadOp::Load,
-                    store_op: wgpu::StoreOp::Store,
-                    clear_color: wgpu::Color::TRANSPARENT,
-                }],
-                depth_stencil_attachment: None,
-            });
-
-            rpass.set_pipeline(&pipeline);
-            rpass.set_bind_group(0, &bind_group, &[]);
-            rpass.set_index_buffer(&ibo, 0);
-            rpass.set_vertex_buffers(0, &[(&vbo, 0)]);
-
-            rpass.draw_indexed(0..stroke_indices.len() as _, 0, 0..1);
-        }
-
-        queue.submit(&[encoder.finish()]);
-
-        fill_vertices.clear();
-        fill_indices.clear();
-
-        stroke_vertices.clear();
-        stroke_indices.clear();
+        self.clear();
     }
 
     pub fn push(&mut self) {
@@ -358,14 +352,6 @@ impl Sketch {
 
     pub fn pop(&mut self) {
         self.state_stack.pop();
-    }
-
-    pub fn no_clear(&mut self) {
-        self.clear_color = None;
-    }
-
-    pub fn clear<C: Into<Color>>(&mut self, color: C) {
-        self.clear_color = Some(color.into());
     }
 }
 
@@ -380,6 +366,10 @@ impl Drawing for Sketch {
 
     fn stroke_buffer(&mut self) -> &mut VertexBuffer {
         &mut self.stroke_buffer
+    }
+
+    fn size(&self) -> Size {
+        self.size
     }
 }
 

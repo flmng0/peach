@@ -138,7 +138,7 @@ impl Default for Config {
     fn default() -> Self {
         Self {
             name: String::from("peach sketch"),
-            size: Size::new(640.0, 480.0),
+            size: Size::new(800.0, 600.0),
             resizable: false,
             exit_key: None,
             framerate: None,

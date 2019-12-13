@@ -1,42 +1,13 @@
 use crate::{
     color::Color,
-    vertex::{Vertex, VertexBuffer, WithColorAndTransform},
-    Point, Rect, Size, Transform, Vector,
+    draw::{DrawState, Drawing},
+    vertex::{Vertex, VertexBuffer},
+    Size, Transform,
 };
 
-use crate::tess::{BuffersBuilder, FillOptions, LineCap, StrokeOptions};
 use winit::window::Window;
 
 pub const MAX_STATE_STACK: usize = 64;
-
-#[derive(Debug, Copy, Clone)]
-/// Used in [`Sketch::anchor`][0]; describes the anchor
-/// point where all geometries are drawn from.
-///
-/// Default Value: `Anchor::TopLeft`.
-///
-/// # Applies To:
-/// - `rect`
-///
-/// [0]: struct.Sketch.html#method.anchor
-pub enum Anchor {
-    /// Place the top-left corner of geometries under the
-    /// given position.
-    TopLeft,
-    /// Place geometries in the center of the given
-    /// position.
-    Center,
-    /// Offset geometries by the given vector pixels.
-    Offset(Vector),
-    /// Offset by the given percentage.
-    Percent(Vector),
-}
-
-impl Default for Anchor {
-    fn default() -> Anchor {
-        Anchor::TopLeft
-    }
-}
 
 #[derive(Debug)]
 struct GpuState {
@@ -51,38 +22,6 @@ struct GpuState {
     swap_chain: wgpu::SwapChain,
 
     pipeline: wgpu::RenderPipeline,
-}
-
-#[derive(Debug, Copy, Clone)]
-struct DrawState {
-    fill_color: Option<Color>,
-    stroke_color: Option<Color>,
-
-    anchor: Anchor,
-
-    fill_options: FillOptions,
-    stroke_options: StrokeOptions,
-
-    transform: Transform,
-}
-
-impl Default for DrawState {
-    fn default() -> DrawState {
-        let fill_options = FillOptions::default().with_normals(false);
-
-        let stroke_options = StrokeOptions::default()
-            .with_start_cap(LineCap::Round)
-            .with_end_cap(LineCap::Round);
-
-        DrawState {
-            fill_color: Some(Color::WHITE),
-            stroke_color: Some(Color::BLACK),
-            anchor: Anchor::default(),
-            fill_options,
-            stroke_options,
-            transform: Transform::identity(),
-        }
-    }
 }
 
 #[derive(Debug)]
@@ -241,7 +180,7 @@ impl Sketch {
         let pipeline = device.create_render_pipeline(&pipeline_descriptor);
 
         let state_stack = Vec::with_capacity(MAX_STATE_STACK);
-        let transform = default_transform(size);
+        let transform = view_transform(size);
 
         Sketch {
             gpu_state: GpuState {
@@ -268,21 +207,29 @@ impl Sketch {
         }
     }
 
-    pub(crate) fn resize(&mut self, size: Size) {
-        self.size = size;
-
-        let GpuState {
-            device,
-            surface,
-            swap_chain_desc,
-            swap_chain,
+    pub(crate) fn resize(&mut self, new_size: Size) {
+        let Self {
+            gpu_state:
+                GpuState {
+                    device,
+                    surface,
+                    swap_chain_desc,
+                    swap_chain,
+                    ..
+                },
+            size,
+            transform,
             ..
-        } = &mut self.gpu_state;
+        } = self;
+
+        *size = new_size;
 
         swap_chain_desc.width = size.width as _;
         swap_chain_desc.height = size.height as _;
 
         *swap_chain = device.create_swap_chain(&surface, &swap_chain_desc);
+
+        *transform = view_transform(*size);
     }
 
     pub(crate) fn finish(&mut self) {
@@ -413,10 +360,6 @@ impl Sketch {
         self.state_stack.pop();
     }
 
-    fn draw_state(&mut self) -> &mut DrawState {
-        self.state_stack.last_mut().unwrap()
-    }
-
     pub fn no_clear(&mut self) {
         self.clear_color = None;
     }
@@ -424,94 +367,22 @@ impl Sketch {
     pub fn clear<C: Into<Color>>(&mut self, color: C) {
         self.clear_color = Some(color.into());
     }
+}
 
-    pub fn no_fill(&mut self) {
-        self.draw_state().fill_color = None;
+impl Drawing for Sketch {
+    fn draw_state(&mut self) -> &mut DrawState {
+        self.state_stack.last_mut().unwrap()
     }
 
-    pub fn fill<C: Into<Color>>(&mut self, color: C) {
-        self.draw_state().fill_color = Some(color.into());
+    fn fill_buffer(&mut self) -> &mut VertexBuffer {
+        &mut self.fill_buffer
     }
 
-    pub fn no_stroke(&mut self) {
-        self.draw_state().stroke_color = None;
-    }
-
-    pub fn stroke<C: Into<Color>>(&mut self, color: C) {
-        self.draw_state().stroke_color = Some(color.into());
-    }
-
-    pub fn stroke_weight(&mut self, weight: f32) {
-        self.draw_state().stroke_options.line_width = weight;
-    }
-
-    pub fn translate(&mut self, x: f32, y: f32) {
-        let transform = &mut self.draw_state().transform;
-
-        let mut translate = Transform::identity();
-        translate.m41 = x;
-        translate.m42 = y;
-
-        *transform = transform.post_transform(&translate);
-    }
-
-    pub fn rotate(&mut self, degrees: f32) {
-        let transform = &mut self.draw_state().transform;
-
-        let angle = euclid::Angle::degrees(degrees);
-
-        *transform = transform.post_rotate(0.0, 0.0, 1.0, angle);
-    }
-
-    pub fn anchor(&mut self, anchor: Anchor) {
-        self.draw_state().anchor = anchor;
-    }
-
-    fn apply_anchor(&mut self, pos: Point, size: Size) -> Point {
-        match self.draw_state().anchor {
-            Anchor::TopLeft => pos,
-            Anchor::Center => pos - Vector::from(size / 2.0),
-            Anchor::Offset(offset) => pos - offset,
-            Anchor::Percent(offset) => {
-                pos - Vector::new(offset.x * size.width, offset.y * size.height)
-            }
-        }
-    }
-
-    pub fn rect(&mut self, x: f32, y: f32, w: f32, h: f32) {
-        let point = Point::new(x, y);
-        let size = Size::new(w, h);
-
-        let pos = self.apply_anchor(point, size);
-        let rect = Rect::new(pos, size);
-
-        let draw_state = self.draw_state().clone();
-
-        if let Some(fill_color) = draw_state.fill_color {
-            crate::tess::basic_shapes::fill_rectangle(
-                &rect,
-                &draw_state.fill_options,
-                &mut BuffersBuilder::new(
-                    &mut self.fill_buffer,
-                    WithColorAndTransform(fill_color, draw_state.transform),
-                ),
-            )
-            .unwrap();
-        }
-
-        if let Some(stroke_color) = draw_state.stroke_color {
-            crate::tess::basic_shapes::stroke_rectangle(
-                &rect,
-                &draw_state.stroke_options,
-                &mut BuffersBuilder::new(
-                    &mut self.stroke_buffer,
-                    WithColorAndTransform(stroke_color, draw_state.transform),
-                ),
-            )
-            .unwrap();
-        }
+    fn stroke_buffer(&mut self) -> &mut VertexBuffer {
+        &mut self.stroke_buffer
     }
 }
+
 /// Generate a shader module from source code, given a
 /// compiler.
 fn create_shader(
@@ -559,7 +430,7 @@ fn init_shaders(device: &wgpu::Device) -> [wgpu::ShaderModule; 2] {
     [vs_module, fs_module]
 }
 
-fn default_transform(size: Size) -> Transform {
+fn view_transform(size: Size) -> Transform {
     let mut transform = Transform::identity();
 
     transform.m11 = 1.0 / size.width * 2.0;

@@ -1,5 +1,6 @@
 pub mod color;
 pub mod config;
+pub mod draw;
 pub mod run;
 pub mod sketch;
 pub mod state;
@@ -31,7 +32,8 @@ pub mod prelude {
     pub use crate::{
         color::Color,
         config::{Callbacks, Config},
-        sketch::{Anchor, Sketch},
+        draw::{Anchor, AngleMode, Drawing},
+        sketch::Sketch,
         state::State,
         Button, Key, Modifiers, Point, Rect, Size, Transform, Vector,
     };

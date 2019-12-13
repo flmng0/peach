@@ -100,8 +100,11 @@ where
                 }
             }
             WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
-            WindowEvent::ModifiersChanged { modifiers } => state.modifiers = modifiers,
-            WindowEvent::MouseWheel { delta, .. } => {
+            WindowEvent::MouseWheel {
+                delta, modifiers, ..
+            } => {
+                state.modifiers = modifiers;
+
                 let delta = match delta {
                     MouseScrollDelta::LineDelta(_, y) => y,
                     MouseScrollDelta::PixelDelta(logical) => {
@@ -115,7 +118,13 @@ where
                     callback(&mut sketch, &state, delta);
                 }
             }
-            WindowEvent::CursorMoved { position, .. } => {
+            WindowEvent::CursorMoved {
+                position,
+                modifiers,
+                ..
+            } => {
+                state.modifiers = modifiers;
+
                 let physical = position.to_physical(window.hidpi_factor());
                 let position = Point::new(physical.x as _, physical.y as _);
 
@@ -128,8 +137,11 @@ where
             WindowEvent::MouseInput {
                 state: event_state,
                 button,
+                modifiers,
                 ..
             } => {
+                state.modifiers = modifiers;
+
                 let button_callback = match event_state {
                     ElementState::Pressed => callbacks.button_down,
                     ElementState::Released => callbacks.button_up,
@@ -144,10 +156,13 @@ where
                     KeyboardInput {
                         state: event_state,
                         virtual_keycode: Some(key),
+                        modifiers,
                         ..
                     },
                 ..
             } => {
+                state.modifiers = modifiers;
+
                 if let Some(exit_key) = exit_key {
                     if key == exit_key {
                         *control_flow = ControlFlow::Exit;

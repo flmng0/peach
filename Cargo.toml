@@ -10,7 +10,7 @@ shaderc = "0.6.1"
 lyon_tessellation = "0.14.2"
 wgpu = "0.4.0"
 wgpu-native = "0.4.0"
-winit = "0.20.0-alpha4"
+winit = "0.20.0-alpha5"
 
 [dev-dependencies]
 approx = "0.3.2"

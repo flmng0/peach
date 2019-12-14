@@ -1,5 +1,6 @@
 use crate::{config::Config, sketch::Sketch, state::State, Point, Size};
 
+use log::info;
 use std::time::{Duration, Instant};
 use winit::{
     dpi::LogicalSize,
@@ -33,6 +34,8 @@ pub fn run<DrawFn>(draw: DrawFn, config: Config) -> !
 where
     DrawFn: 'static + Fn(&mut Sketch, &State),
 {
+    info!("Creating new sketch with config: {:?}", config);
+
     // Window set up.
     let size = config.size;
 
@@ -59,6 +62,7 @@ where
         callback(&mut sketch);
     }
 
+    info!("Beginning event loop");
     // Event loop, doesn't return.
     event_loop.run(move |event, _, control_flow| match event {
         Event::EventsCleared => {

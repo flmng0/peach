@@ -1,6 +1,8 @@
 use peach::prelude::*;
 
 fn main() {
+    env_logger::init();
+
     peach::run(
         draw,
         Config::default()

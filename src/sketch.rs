@@ -5,6 +5,7 @@ use crate::{
     Size, Transform,
 };
 
+use log::{debug, info};
 use winit::window::Window;
 
 pub const MAX_STATE_STACK: usize = 64;
@@ -40,6 +41,8 @@ pub struct Sketch {
 
 impl Sketch {
     pub(crate) fn new(window: &Window) -> Self {
+        info!("Beginning sketch creation");
+
         // Reguest a device adapter, used to retrieve a physical
         // device.
         let adapter = wgpu::Adapter::request(&wgpu::RequestAdapterOptions {
@@ -222,6 +225,12 @@ impl Sketch {
             ..
         } = self;
 
+        info!(
+            "Window resized, recreating swapchain, new size: {:?}",
+            new_size
+        );
+        debug!("Previous size: {:?}", size);
+
         *size = new_size;
 
         swap_chain_desc.width = size.width as _;
@@ -233,6 +242,8 @@ impl Sketch {
     }
 
     pub(crate) fn finish(&mut self) {
+        info!("Drawing finished");
+
         {
             let Self {
                 gpu_state:
@@ -282,6 +293,8 @@ impl Sketch {
 
             // Fill render pass.
             {
+                debug!("Beginning fill render pass");
+
                 let vbo = device
                     .create_buffer_mapped(fill_vertices.len(), wgpu::BufferUsage::VERTEX)
                     .fill_from_slice(&fill_vertices);
@@ -310,6 +323,8 @@ impl Sketch {
 
             // Stroke render pass.
             {
+                debug!("Beginning stroke render pass");
+
                 let vbo = device
                     .create_buffer_mapped(stroke_vertices.len(), wgpu::BufferUsage::VERTEX)
                     .fill_from_slice(&stroke_vertices);
@@ -343,6 +358,11 @@ impl Sketch {
     }
 
     pub fn push(&mut self) {
+        info!(
+            "Draw state pushed, new stack size: {}",
+            self.state_stack.len()
+        );
+
         let draw_state = match self.state_stack.last() {
             Some(draw_state) => draw_state.clone(),
             None => DrawState::default(),
@@ -351,6 +371,11 @@ impl Sketch {
     }
 
     pub fn pop(&mut self) {
+        info!(
+            "Draw state popped, new stack size: {}",
+            self.state_stack.len()
+        );
+
         self.state_stack.pop();
     }
 }
@@ -382,6 +407,8 @@ fn create_shader(
     name: &str,
     kind: shaderc::ShaderKind,
 ) -> wgpu::ShaderModule {
+    debug!("Creating shader module, name: {}", name);
+
     let binary = compiler
         .compile_into_spirv(source, kind, name, "main", None)
         .unwrap();

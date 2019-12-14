@@ -1,3 +1,6 @@
+//! The `Drawing` trait, and other related structs used for
+//! drawing.
+
 use crate::{
     color::Color,
     vertex::{VertexBuffer, WithColorAndTransform},
@@ -5,6 +8,7 @@ use crate::{
 };
 
 use crate::tess::{basic_shapes as ba, BuffersBuilder, FillOptions, LineCap, StrokeOptions};
+use log::debug;
 
 #[derive(Debug, Copy, Clone)]
 /// Used in [`Sketch::anchor`][0]; describes the anchor
@@ -94,17 +98,32 @@ impl Default for DrawState {
 /// Different methods for drawing basic shapes and setting
 /// the drawing state.
 pub trait Drawing {
-    /// Unless implementing a new backend beside OpenGL,
-    /// don't worry about this, `fill_buffer`,
-    /// `stroke_buffer`, and `size`.
+    /// Get a mutable reference to the current draw state.
+    /// Used to modify attributes, such as fill color,
+    /// anchor mode, etc.
     fn draw_state(&mut self) -> &mut DrawState;
+
+    /// Gets a mutable reference to the
+    /// `lyon_tessellation::VertexBuffer` dedicated to
+    /// filling operations.
     fn fill_buffer(&mut self) -> &mut VertexBuffer;
+
+    /// Gets a mutable reference to the
+    /// `lyon_tessellation::VertexBuffer` dedicated to
+    /// stroke operations.
     fn stroke_buffer(&mut self) -> &mut VertexBuffer;
+
+    /// Get the current size of the sketch. The current size
+    /// is also exposed in [`peach::state::State`][0].
+    ///
+    /// [0]: ../state/struct.State.html
     fn size(&self) -> Size;
 
     /// Clear the window completely, including the
     /// background.
     fn clear(&mut self) {
+        debug!("Clearing drawing states.");
+
         let fill_buffer = self.fill_buffer();
         fill_buffer.vertices.clear();
         fill_buffer.indices.clear();
@@ -118,6 +137,8 @@ pub trait Drawing {
     /// `color`.
     fn background(&mut self, color: Color) {
         let draw_state = *self.draw_state();
+
+        debug!("Drawing background, with color: {:?}", color);
 
         let rect = Rect::new(Point::zero(), self.size());
 
@@ -135,39 +156,88 @@ pub trait Drawing {
     /// Set the fill color of the current state to the given
     /// `color`.
     fn fill(&mut self, color: Color) {
-        self.draw_state().fill_color = Some(color);
+        let draw_state = self.draw_state();
+
+        debug!(
+            "Setting fill color: {:?}. Previous fill color: {:?}",
+            color, draw_state.fill_color
+        );
+
+        draw_state.fill_color = Some(color);
     }
 
     /// Disable filling.
     fn no_fill(&mut self) {
-        self.draw_state().fill_color = None;
+        let draw_state = self.draw_state();
+
+        debug!(
+            "Disabling fill. Previous fill color {:?}",
+            draw_state.fill_color
+        );
+
+        draw_state.fill_color = None;
     }
 
     // Set the stroke color of the current state to the given
     // `color`.
     fn stroke(&mut self, color: Color) {
-        self.draw_state().stroke_color = Some(color);
+        let draw_state = self.draw_state();
+
+        debug!(
+            "Setting stroke color: {:?}. Previous stroke color: {:?}",
+            color, draw_state.fill_color
+        );
+
+        draw_state.stroke_color = Some(color);
     }
 
     /// Disable drawing stroke.
     fn no_stroke(&mut self) {
-        self.draw_state().stroke_color = None;
+        let draw_state = self.draw_state();
+
+        debug!(
+            "Disabling stroke. Previous stroke color: {:?}",
+            draw_state.stroke_color
+        );
+
+        draw_state.stroke_color = None;
     }
 
-    /// Set the thickness of the stroke to the given `width`
-    /// in pixels.
+    /// Set the thickness of the stroke to the given stroke
+    /// `weight` in pixels.
     fn stroke_weight(&mut self, weight: f32) {
-        self.draw_state().stroke_options.line_width = weight;
+        let draw_state = self.draw_state();
+
+        debug!(
+            "Setting stroke weight: {:?}. Previous stroke weight: {:?}",
+            weight, draw_state.stroke_options.line_width
+        );
+
+        draw_state.stroke_options.line_width = weight;
     }
 
     /// Set the anchor mode to `anchor`.
     fn anchor(&mut self, anchor: Anchor) {
-        self.draw_state().anchor = anchor;
+        let draw_state = self.draw_state();
+
+        debug!(
+            "Setting anchor mode: {:?}. Previous anchor mode: {:?}",
+            anchor, draw_state.anchor
+        );
+
+        draw_state.anchor = anchor;
     }
 
     /// Set the angle mode to `angle_mode`.
     fn angle_mode(&mut self, angle_mode: AngleMode) {
-        self.draw_state().angle_mode = angle_mode;
+        let draw_state = self.draw_state();
+
+        debug!(
+            "Setting angle mode: {:?}. Previous angle mode: {:?}",
+            angle_mode, draw_state.angle_mode
+        );
+
+        draw_state.angle_mode = angle_mode;
     }
 
     /// Translate every proceeding draw operation by (`x`,
@@ -181,6 +251,8 @@ pub trait Drawing {
     /// The total translation in the snippet above is
     /// (`60.0`, `50.0`).
     fn translate(&mut self, x: f32, y: f32) {
+        debug!("Translating to position: {{ x: {:?}, y: {:?} }}", x, y);
+
         let draw_state = self.draw_state();
 
         let mut translation = Transform::identity();
@@ -199,6 +271,11 @@ pub trait Drawing {
     fn rotate(&mut self, angle: f32) {
         let draw_state = self.draw_state();
 
+        debug!(
+            "Rotating by angle: {:?}, with angle mode: {:?}",
+            angle, draw_state.angle_mode
+        );
+
         let angle = match draw_state.angle_mode {
             AngleMode::Degrees => euclid::Angle::degrees(angle),
             AngleMode::Radians => euclid::Angle::radians(angle),
@@ -211,6 +288,13 @@ pub trait Drawing {
     /// with size (`w`, `h`).
     fn rect(&mut self, x: f32, y: f32, w: f32, h: f32) {
         let draw_state = *self.draw_state();
+
+        debug!(
+            "Drawing rectangle at position: {{ x: {:?}, y: {:?} }}, with size: {{ width: {:?}, \
+             height: {:?} }}",
+            x, y, w, h
+        );
+        debug!("Current draw state: {:?}", draw_state);
 
         let point = Point::new(x, y);
         let size = Size::new(w, h);

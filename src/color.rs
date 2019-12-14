@@ -129,9 +129,9 @@ impl Color {
             a: 1.0,
         }
     }
-
     /// Create the RGBA from HSLA, where hue is in degrees
-    /// from `0.0` to `360.0`.
+    /// from `0.0` to `360.0`. Saturation, lightness, and
+    /// alpha are all from `0.0` to `1.0`.
     ///
     /// If the hue is greater than `360.0`, then modulo is
     /// applied.
@@ -150,6 +150,7 @@ impl Color {
         Color::new(f(0.0), f(8.0), f(4.0), a)
     }
 
+    /// Same as calling `Color::hsla` with an alpha of 1.0.
     pub fn hsl(h: f32, s: f32, l: f32) -> Color {
         Color::hsla(h, s, l, 1.0)
     }
@@ -160,12 +161,6 @@ impl From<u32> for Color {
         Color::hex(hex)
     }
 }
-
-// impl Into<u32> for Color {
-//     fn into(self) -> u32 {
-
-//     }
-// }
 
 impl From<[f32; 4]> for Color {
     fn from(slice: [f32; 4]) -> Color {

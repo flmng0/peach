@@ -4,6 +4,15 @@ version = "0.1.0"
 authors = ["Timothy Davis <tmthydvs@gmail.com>"]
 edition = "2018"
 
+description = "Sandbox engine for Rust, inspired by Processing"
+
+license = "MIT"
+repository = "https://github.com/flmng0/peach"
+readme = "README.md"
+
+keywords = ["processing", "sandbox", "drawing"]
+categories = ["game-engine", "visualization"]
+
 [dependencies]
 euclid = "0.20"
 shaderc = "0.6"

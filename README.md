@@ -20,19 +20,19 @@ struct Example {
 }
 
 impl Handler for Example {
-    fn update(&mut self, sketch: &mut Sketch, delta: Delta) {
-        self.x = delta.time_since_start.as_secs_f32().sin();
-    }
-
-    fn draw(&self, sketch: &mut Sketch) {
+    fn draw(&self, gfx: &mut Graphics) {
         let center = sketch.center();
 
-        sketch.scope(|sketch| {
-            sketch.anchorMode(AnchorMode::Center);
-            sketch.translate(center.x + self.x * 200.0, center.y);
-            sketch.rotate(Angle::Radians(self.x * PI));
-            sketch.square(0.0, 0.0, 20.0);
+        gfx.scope(|gfx| {
+            gfx.anchorMode(AnchorMode::Center);
+            gfx.translate(center.x + self.x * 200.0, center.y);
+            gfx.rotate(Angle::Radians(self.x * PI));
+            gfx.square(0.0, 0.0, 20.0);
         });
+    }
+
+    fn update(&mut self, sketch: &mut Sketch, delta: Delta) {
+        self.x = delta.time_since_start.as_secs_f32().sin();
     }
 }
 ```

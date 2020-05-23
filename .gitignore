@@ -1,4 +1,10 @@
+# Rust build files
 /target
 **/*.rs.bk
-Cargo.lock
+
+# Editor Configs
+.idea
+.vscode
+
+# OSX Temporaries
 .DS_Store

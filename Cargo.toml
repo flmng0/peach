@@ -11,17 +11,11 @@ repository = "https://github.com/flmng0/peach"
 readme = "README.md"
 
 keywords = ["processing", "sandbox", "drawing"]
-categories = ["game-engines", "visualization"]
 
 [dependencies]
-euclid = "0.20"
-shaderc = "0.6"
-lyon_tessellation = "0.14"
-log = "0.4"
-wgpu = "0.4"
-wgpu-native = "0.4"
-winit = "0.20.0-alpha5"
+thiserror = "1.0"
 
-[dev-dependencies]
-approx = "0.3"
-env_logger = "0.7"
+winit = "0.22"
+
+palette = "0.5"
+lyon_tessellation = "0.15"

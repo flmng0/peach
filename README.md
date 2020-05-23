@@ -7,26 +7,32 @@ See the [examples](examples/) folder for more code snippets, as well as screen s
 use peach::prelude::*;
 
 fn main() {
-    peach::run(
-        draw,
-        Config::default()
-            .with_setup(setup)
-            .with_exit_key(Key::Escape),
-    );
+    peach::run(|sketch| {
+        sketch.set_size(512.0, 512.0);
+        sketch.fill(Color::hex(0xff4488ff));
+        sketch.no_stroke();
+    }, Example::default());
 }
 
-fn setup(sketch: &mut Sketch) {
-    sketch.fill(Color::RED);
-    sketch.no_stroke();
-
-    sketch.anchor(Anchor::Center);
+#[derive(Default)]
+struct Example {
+    x: f32,
 }
 
-fn draw(sketch: &mut Sketch, state: &State) {
-    sketch.background(Color::WHITE);
+impl Handler for Example {
+    fn update(&mut self, sketch: &mut Sketch, delta: Delta) {
+        self.x = delta.time_since_start.as_secs_f32().sin();
+    }
 
-    sketch.translate(state.cursor);
-    sketch.rotate(state.frame as f32 / 100.0);
-    sketch.rect(Point::zero(), Size::new(100.0, 100.0));
+    fn draw(&self, sketch: &mut Sketch) {
+        let center = sketch.center();
+
+        sketch.scope(|sketch| {
+            sketch.anchorMode(AnchorMode::Center);
+            sketch.translate(center.x + self.x * 200.0, center.y);
+            sketch.rotate(Angle::Radians(self.x * PI));
+            sketch.square(0.0, 0.0, 20.0);
+        });
+    }
 }
 ```

@@ -7,11 +7,12 @@ See the [examples](examples/) folder for more code snippets, as well as screen s
 use peach::prelude::*;
 
 fn main() {
-    peach::run(|sketch| {
-        sketch.set_size(512.0, 512.0);
-        sketch.fill(Color::hex(0xff4488ff));
-        sketch.no_stroke();
-    }, Example::default());
+    peach::run::<Example>(SketchSettings {
+        title: Some("Example Sketch"),
+        width: 512.0,
+        height: 512.0,
+        ..Default::default()
+    });
 }
 
 #[derive(Default)]
@@ -20,14 +21,21 @@ struct Example {
 }
 
 impl Handler for Example {
-    fn draw(&self, gfx: &mut Graphics) {
+    fn setup(sketch: &mut Sketch) -> Self {
+        sketch.fill(Color::from_hex(0xff4488ff));
+        sketch.no_stroke();
+
+        Self::default()
+    }
+
+    fn draw(&self, sketch: &mut Sketch, gfx: &mut Graphics) {
         let center = sketch.center();
 
         gfx.scope(|gfx| {
             gfx.anchorMode(AnchorMode::Center);
-            gfx.translate(center.x + self.x * 200.0, center.y);
+            gfx.translate(center);
             gfx.rotate(Angle::Radians(self.x * PI));
-            gfx.square(0.0, 0.0, 20.0);
+            gfx.square((self.x * 200.0, 0.0), 20.0);
         });
     }
 

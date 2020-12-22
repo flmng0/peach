@@ -1,7 +1,6 @@
-use crate::{error::SketchError, lifecycle::Handler, state};
+use crate::{error::SketchError, graphics, lifecycle::Handler, state};
 
 use std::time::{Duration, Instant};
-
 use winit::{
     dpi::LogicalSize,
     event::{Event, KeyboardInput, WindowEvent},
@@ -9,15 +8,12 @@ use winit::{
     window::{Window, WindowBuilder},
 };
 
-pub struct Graphics {
-    draw_state: state::DrawState,
-}
-
 pub struct Sketch {
     pub(crate) window: Window,
     frame_delay: Option<Duration>,
     running: bool,
-    draw_state: state::DrawState,
+
+    gpu_state: graphics::GpuState,
 }
 
 impl Sketch {
@@ -104,7 +100,7 @@ impl Sketch {
                     };
                     handler.draw(&mut gfx);
 
-                    // do something we our gfx commands.
+                    // do something with our gfx commands.
                 }
 
                 Event::WindowEvent { event, .. } => match event {

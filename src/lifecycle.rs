@@ -21,15 +21,15 @@ pub trait Handler {
     fn mouse_moved(&mut self, input: &InputState, position: (f64, f64)) {}
 }
 
-pub fn run<S, H>(setup: S, handler: H) -> !
+pub fn run<S, H>(setup: S) -> !
 where
-    S: FnOnce(&mut Sketch),
+    S: FnOnce(&mut Sketch) -> H,
     H: 'static + Handler,
 {
     let event_loop = EventLoop::new();
 
     let mut sketch = Sketch::new(&event_loop).expect("Unable to initialize sketch");
-    setup(&mut sketch);
+    let handler = setup(&mut sketch);
 
     sketch.run(event_loop, handler)
 }

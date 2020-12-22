@@ -1,4 +1,5 @@
 pub mod error;
+pub mod graphics;
 pub mod lifecycle;
 pub mod sketch;
 pub mod state;

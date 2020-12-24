@@ -2,10 +2,8 @@
 
 use super::context::Context;
 
-use crate::tess::{self, path};
-use crate::types::{Color, Index, Point, RawVertex, Transform};
-
-use std::convert::TryInto;
+use crate::tess;
+use crate::types::{Color, Index, Point, RawVertex};
 
 type GeometryBuilderResult = Result<tess::VertexId, tess::GeometryBuilderError>;
 

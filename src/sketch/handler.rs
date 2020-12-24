@@ -1,5 +1,5 @@
 use super::Sketch;
-use crate::graphics::Graphics;
+use crate::render::Graphics;
 
 pub trait Handler {
     fn setup(sketch: &mut Sketch) -> Self;

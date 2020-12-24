@@ -13,9 +13,8 @@ readme = "README.md"
 keywords = ["processing", "sandbox", "drawing"]
 
 [dependencies]
-thiserror = "1.0"
-
-winit = "0.22"
-
-palette = "0.5"
-lyon_tessellation = "0.15"
+euclid = "0.22.1"
+lyon_tessellation = "0.16.2"
+rgb = "0.8.25"
+thiserror = "1.0.22"
+winit = "0.24.0"

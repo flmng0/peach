@@ -1,11 +1,7 @@
-mod construct;
-use construct::RawBuffersBuilder;
-
-mod context;
-use context::Context;
-
 use crate::tess::{self, path::iterator::FromPolyline};
 use crate::types::{Index, Point, RawVertex, Size, Vector};
+
+use super::{construct::RawBuffersBuilder, context::Context};
 
 #[derive(Clone)]
 enum DrawCommand {
@@ -83,7 +79,7 @@ impl Graphics {
         self.rect(position, Size::new(size, size));
     }
 
-    fn construct_buffer_data(
+    pub(crate) fn construct_buffer_data(
         self,
     ) -> Result<(Vec<RawVertex>, Vec<Index>), tess::TessellationError> {
         let mut current_context = self.context();
@@ -122,15 +118,3 @@ impl Graphics {
         Ok(builder.take())
     }
 }
-
-// impl<I> IntoIterator for I
-// where
-//     I: IntoIterator<Item = &Point>,
-// {
-//     type Item = Point;
-//     type IntoIter = <I as IntoIterator>::IntoIter;
-
-//     fn into_iter(self) -> Self::IntoIter {
-//         self.into_iter().cloned()
-//     }
-// }

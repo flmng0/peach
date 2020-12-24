@@ -7,10 +7,9 @@ See the [examples](examples/) folder for more code snippets, as well as screen s
 use peach::prelude::*;
 
 fn main() {
-    peach::run::<Example>(SketchSettings {
+    peach::run::<Example>(Settings {
         title: Some("Example Sketch"),
-        width: 512.0,
-        height: 512.0,
+        size: [512.0, 512.0],
         ..Default::default()
     });
 }
@@ -31,12 +30,12 @@ impl Handler for Example {
     fn draw(&self, sketch: &mut Sketch, gfx: &mut Graphics) {
         let center = sketch.center();
 
-        gfx.scope(|gfx| {
+        gfx.save();
             gfx.anchorMode(AnchorMode::Center);
             gfx.translate(center);
             gfx.rotate(Angle::Radians(self.x * PI));
             gfx.square((self.x * 200.0, 0.0), 20.0);
-        });
+        gfx.restore();
     }
 
     fn update(&mut self, sketch: &mut Sketch, delta: Delta) {

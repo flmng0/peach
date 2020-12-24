@@ -31,7 +31,7 @@ impl Handler for Example {
         let center = sketch.center();
 
         gfx.save();
-            gfx.anchorMode(AnchorMode::Center);
+            gfx.anchor_mode(AnchorMode::Center);
             gfx.translate(center);
             gfx.rotate(Angle::Radians(self.x * PI));
             gfx.square((self.x * 200.0, 0.0), 20.0);

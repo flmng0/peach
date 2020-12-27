@@ -4,9 +4,11 @@ use crate::types::{Fullscreen, Key, Modifiers, MouseButton, Point, Size};
 
 use std::collections::HashMap;
 
-use winit::dpi::LogicalSize;
-use winit::event::{ElementState, KeyboardInput, WindowEvent};
-use winit::window::Window;
+use winit::{
+    dpi::LogicalSize,
+    event::{ElementState, KeyboardInput, WindowEvent},
+    window::Window,
+};
 
 pub struct Sketch {
     pub(super) window: Window,

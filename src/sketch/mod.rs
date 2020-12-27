@@ -3,8 +3,8 @@ pub(crate) mod run;
 mod sketch;
 
 use crate::types::Size;
-pub use handler::Handler;
-pub use sketch::Sketch;
+
+pub use self::{handler::Handler, sketch::Sketch};
 
 use std::time::{Duration, Instant};
 

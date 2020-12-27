@@ -1,7 +1,9 @@
 use super::{construct::RawBuffersBuilder, context::Context};
 
-use crate::tess::{self, path::iterator::FromPolyline};
-use crate::types::{Index, Point, RawVertex, Size, Vector};
+use crate::{
+    tess::{self, path::iterator::FromPolyline},
+    types::{Index, Point, RawVertex, Size, Vector},
+};
 
 use anyhow::Result;
 

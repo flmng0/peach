@@ -2,8 +2,10 @@
 
 use super::context::Context;
 
-use crate::tess;
-use crate::types::{Color, Index, Point, RawVertex};
+use crate::{
+    tess,
+    types::{Color, Index, Point, RawVertex},
+};
 
 type GeometryBuilderResult = Result<tess::VertexId, tess::GeometryBuilderError>;
 

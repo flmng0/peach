@@ -1,3 +1,8 @@
+// Re-exports
+pub use winit::event::{ModifiersState as Modifiers, MouseButton, VirtualKeyCode as Key};
+pub use winit::window::Fullscreen;
+
+// Structures
 #[repr(C)]
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct RawVertex {
@@ -5,6 +10,7 @@ pub(crate) struct RawVertex {
     pub color: [f32; 4],
 }
 
+// Common types
 pub type Index = u32;
 pub type Color = rgb::RGBA<f32>;
 

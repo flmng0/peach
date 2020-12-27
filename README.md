@@ -13,12 +13,7 @@ fn main() {
         ..Default::default()
     };
 
-    let mut sketch = Sketch::new(settings);
-
-    sketch.fill(Color::new(1.0, 0.0, 0.0, 1.0));
-    sketch.no_stroke();
-
-    sketch.run(Example::default());
+    peach::run::<Example>(settings)
 }
 
 #[derive(Default)]
@@ -27,6 +22,13 @@ struct Example {
 }
 
 impl Handler for Example {
+    fn setup(sketch: &mut Sketch) -> Self {
+        sketch.fill(Color::from_hex(0xff4488ff));
+        sketch.no_stroke();
+
+        Self::default()
+    }
+
     fn draw(&self, sketch: &mut Sketch, gfx: &mut Graphics) {
         let center = sketch.center();
 

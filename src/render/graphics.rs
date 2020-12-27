@@ -1,7 +1,9 @@
+use super::{construct::RawBuffersBuilder, context::Context};
+
 use crate::tess::{self, path::iterator::FromPolyline};
 use crate::types::{Index, Point, RawVertex, Size, Vector};
 
-use super::{construct::RawBuffersBuilder, context::Context};
+use anyhow::Result;
 
 #[derive(Clone)]
 enum DrawCommand {
@@ -16,7 +18,7 @@ pub struct Graphics {
 }
 
 impl Graphics {
-    fn new() -> Self {
+    pub(crate) fn new() -> Self {
         Self {
             draw_commands: Vec::new(),
             context_stack: vec![Context::default()],
@@ -40,6 +42,12 @@ impl Graphics {
         }
     }
 
+    fn draw(&mut self, points: &[Point], closed: bool) {
+        self.update_context_if_dirty();
+        let command = DrawCommand::Draw(closed, points.to_vec());
+        self.draw_commands.push(command);
+    }
+
     pub fn save(&mut self) {
         self.context_stack.push(self.context().clone());
     }
@@ -53,15 +61,6 @@ impl Graphics {
             info!("Cannot restore context, as no context has been saved!");
         }
         */
-    }
-
-    pub(crate) fn draw(
-        &mut self,
-        points: &[Point], /*impl IntoIterator<Item = Point>*/
-        closed: bool,
-    ) {
-        let command = DrawCommand::Draw(closed, points.to_vec());
-        self.draw_commands.push(command);
     }
 
     pub fn rect(&mut self, position: Point, size: Size) {

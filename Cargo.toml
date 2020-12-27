@@ -13,6 +13,7 @@ readme = "README.md"
 keywords = ["processing", "sandbox", "drawing"]
 
 [dependencies]
+anyhow = "1.0.36"
 euclid = "0.22.1"
 lyon_tessellation = "0.16.2"
 rgb = "0.8.25"

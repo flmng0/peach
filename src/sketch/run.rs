@@ -1,4 +1,4 @@
-use crate::render::Graphics;
+use crate::render::{Graphics, Renderer};
 
 use super::{Delta, Handler, Settings, Sketch};
 
@@ -53,20 +53,20 @@ pub fn run<H: 'static + Handler>(settings: Settings) -> Result<()> {
                 if draw {
                     sketch.window.request_redraw();
                 }
-            }
+            },
             Event::RedrawRequested(..) => {
-                let mut gfx = Graphics::new();
+                let mut gfx = Graphics::new(sketch.get_clear_color());
 
                 handler.draw(&mut sketch, &mut gfx);
                 delta.last_draw_instant = Instant::now();
 
-                // renderer.draw(gfx);
-            }
+                sketch.renderer.render(gfx).unwrap();
+            },
             Event::LoopDestroyed => {
                 handler.quit();
-            }
+            },
             Event::WindowEvent { event, .. } => sketch.handle_event(&mut handler, event),
-            _ => {}
+            _ => {},
         }
 
         if sketch.has_stopped() {

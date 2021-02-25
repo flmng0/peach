@@ -14,9 +14,11 @@ keywords = ["processing", "sandbox", "drawing"]
 
 [dependencies]
 anyhow = "1.0.36"
+bytemuck = { version = "1.5.1", features = ["derive"] }
 euclid = "0.22.1"
+futures = "0.3.13"
 lyon_tessellation = "0.16.2"
 rgb = "0.8.25"
 thiserror = "1.0.22"
-wgpu = "0.6.2"
+wgpu = "0.7.0"
 winit = "0.24.0"

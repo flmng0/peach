@@ -1,6 +1,9 @@
 pub use super::{Handler, Settings};
 
-use crate::types::{Fullscreen, Key, Modifiers, MouseButton, Point, Size};
+use crate::{
+    render::Renderer,
+    types::{Color, Fullscreen, Key, Modifiers, MouseButton, Point, Size},
+};
 
 use std::collections::HashMap;
 
@@ -12,8 +15,10 @@ use winit::{
 
 pub struct Sketch {
     pub(super) window: Window,
+    pub(super) renderer: Renderer,
+    pub(super) clear_color: Option<Color>,
+    size: Size,
     modifiers: Modifiers,
-    // renderer: Renderer,
     running: bool,
     pub(super) framerate: Option<u32>,
     pub(super) framerate_dirty: bool,
@@ -24,8 +29,14 @@ pub struct Sketch {
 
 impl Sketch {
     pub(super) fn new(window: Window, framerate: Option<u32>) -> Self {
+        let size = window.inner_size().to_logical(window.scale_factor());
+        let renderer = futures::executor::block_on(Renderer::new(&window)).unwrap();
+
         Self {
             window,
+            renderer,
+            clear_color: None,
+            size: Size::new(size.width, size.height),
             modifiers: Modifiers::default(),
             running: true,
             framerate,
@@ -40,7 +51,7 @@ impl Sketch {
         match event {
             WindowEvent::CloseRequested => {
                 self.running = false;
-            }
+            },
             WindowEvent::ModifiersChanged(modifiers) => self.modifiers = modifiers,
             WindowEvent::KeyboardInput {
                 input:
@@ -57,13 +68,13 @@ impl Sketch {
                     ElementState::Pressed => handler.key_pressed(self, key),
                     ElementState::Released => handler.key_released(self, key),
                 }
-            }
+            },
             WindowEvent::CursorMoved { position, .. } => {
                 let logical = position.to_logical::<f32>(self.window.scale_factor());
                 self.mouse_position = Point::new(logical.x, logical.y);
 
                 handler.mouse_moved(self, self.mouse_position);
-            }
+            },
             WindowEvent::MouseInput { button, state, .. } => {
                 self.mouse_buttons
                     .insert(button, state == ElementState::Pressed);
@@ -72,13 +83,24 @@ impl Sketch {
                     ElementState::Pressed => handler.mouse_pressed(self, button),
                     ElementState::Released => handler.mouse_released(self, button),
                 }
-            }
-            _ => {}
+            },
+            WindowEvent::Resized(size) => {
+                self.renderer.resize(size);
+
+                let logical = size.to_logical(self.window.scale_factor());
+                self.size.width = logical.width;
+                self.size.height = logical.height;
+            },
+            _ => {},
         }
     }
 
     pub(super) fn has_stopped(&self) -> bool {
         !self.running
+    }
+
+    pub fn center(&self) -> Point {
+        Point::new(self.size.width / 2.0, self.size.height / 2.0)
     }
 
     pub fn get_key(&self, key: Key) -> bool {
@@ -108,6 +130,21 @@ impl Sketch {
         let logical_size = physical_size.to_logical(scale_factor);
 
         Size::new(logical_size.width, logical_size.height)
+    }
+
+    pub fn get_clear_color(&self) -> Option<Color> {
+        self.clear_color
+    }
+
+    pub fn set_clear_color<C>(&mut self, color: C)
+    where
+        C: Into<Color>,
+    {
+        self.clear_color = Some(color.into());
+    }
+
+    pub fn no_clear_color<C>(&mut self) {
+        self.clear_color = None;
     }
 
     pub fn set_size(&mut self, new_size: Size) {

@@ -1,10 +1,14 @@
 // Re-exports
-pub use winit::event::{ModifiersState as Modifiers, MouseButton, VirtualKeyCode as Key};
-pub use winit::window::Fullscreen;
+pub use winit::{
+    event::{ModifiersState as Modifiers, MouseButton, VirtualKeyCode as Key},
+    window::Fullscreen,
+};
+
+use bytemuck::{Pod, Zeroable};
 
 // Structures
+#[derive(Debug, Clone, Copy, Pod, Zeroable)]
 #[repr(C)]
-#[derive(Debug, Clone, Copy)]
 pub(crate) struct RawVertex {
     pub position: [f32; 2],
     pub color: [f32; 4],
@@ -26,3 +30,5 @@ define_euclid!(Size, Size2D);
 define_euclid!(Transform, Transform2D);
 define_euclid!(Translation, Translation2D);
 define_euclid!(Vector, Vector2D);
+
+pub type Angle = euclid::Angle<f32>;

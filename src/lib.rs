@@ -9,4 +9,5 @@ pub use rgb;
 
 pub mod prelude {
     pub use crate::{render::*, sketch::*, types::*};
+    pub use std::f32::consts::*;
 }

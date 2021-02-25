@@ -2,7 +2,7 @@ use super::{construct::RawBuffersBuilder, context::Context};
 
 use crate::{
     tess::{self, path::iterator::FromPolyline},
-    types::{Index, Point, RawVertex, Size, Vector},
+    types::*,
 };
 
 use anyhow::Result;
@@ -13,15 +13,22 @@ enum DrawCommand {
     UpdateContext(Context),
 }
 
+pub(crate) struct BufferData {
+    pub vertices: Vec<RawVertex>,
+    pub indices: Vec<Index>,
+}
+
 pub struct Graphics {
+    pub(super) clear_color: Option<Color>,
     draw_commands: Vec<DrawCommand>,
     context_stack: Vec<Context>,
     context_dirty: bool,
 }
 
 impl Graphics {
-    pub(crate) fn new() -> Self {
+    pub(crate) fn new(clear_color: Option<Color>) -> Self {
         Self {
+            clear_color,
             draw_commands: Vec::new(),
             context_stack: vec![Context::default()],
             context_dirty: false,
@@ -32,6 +39,20 @@ impl Graphics {
         self.context_stack
             .last()
             .expect("Uh oh! Impossible thing happened!")
+    }
+
+    fn context_mut(&mut self) -> &mut Context {
+        self.context_stack
+            .last_mut()
+            .expect("Uh oh! Impossible thing happened!")
+    }
+
+    fn transform(&self) -> &Transform {
+        &self.context().transform
+    }
+
+    fn transform_mut(&mut self) -> &mut Transform {
+        &mut self.context_mut().transform
     }
 
     fn update_context_if_dirty(&mut self) {
@@ -58,31 +79,81 @@ impl Graphics {
         if self.context_stack.len() > 1 {
             self.context_stack.pop();
         }
-        /*
-        else {
-            info!("Cannot restore context, as no context has been saved!");
-        }
-        */
+        // else {
+        // info!("Cannot restore context, as no context has
+        // been saved!"); }
     }
 
-    pub fn rect(&mut self, position: Point, size: Size) {
+    pub fn fill<C>(&mut self, color: C)
+    where
+        C: Into<Color>,
+    {
+        self.context_dirty = true;
+        self.context_mut().fill = Some(color.into());
+    }
+
+    pub fn no_fill(&mut self) {
+        self.context_dirty = true;
+        self.context_mut().fill = None;
+    }
+
+    pub fn stroke_weight(&mut self, weight: f32) {
+        self.context_dirty = true;
+        self.context_mut().stroke_weight = weight;
+    }
+
+    pub fn stroke<C>(&mut self, color: C)
+    where
+        C: Into<Color>,
+    {
+        self.context_dirty = true;
+        self.context_mut().stroke = Some(color.into());
+    }
+
+    pub fn no_stroke(&mut self) {
+        self.context_dirty = true;
+        self.context_mut().stroke = None;
+    }
+
+    pub fn rotate(&mut self, angle: Angle) {
+        self.context_dirty = true;
+        *self.transform_mut() = self.transform().pre_rotate(angle);
+    }
+
+    pub fn translate<V>(&mut self, by: V)
+    where
+        V: Into<Vector>,
+    {
+        self.context_dirty = true;
+        *self.transform_mut() = self.transform().pre_translate(by.into());
+    }
+
+    pub fn rect<P, S>(&mut self, position: P, size: S)
+    where
+        P: Into<Point>,
+        S: Into<Size>,
+    {
+        let position = position.into();
+        let size = size.into();
         self.draw(
             &[
                 position + Vector::zero(),
                 position + Vector::new(size.width, 0.0),
                 position + Vector::new(size.width, size.height),
+                position + Vector::new(0.0, size.height),
             ],
             true,
         );
     }
 
-    pub fn square(&mut self, position: Point, size: f32) {
+    pub fn square<P>(&mut self, position: P, size: f32)
+    where
+        P: Into<Point>,
+    {
         self.rect(position, Size::new(size, size));
     }
 
-    pub(crate) fn construct_buffer_data(
-        self,
-    ) -> Result<(Vec<RawVertex>, Vec<Index>), tess::TessellationError> {
+    pub(crate) fn construct_buffer_data(self) -> Result<BufferData, tess::TessellationError> {
         let mut current_context = self.context();
 
         let mut builder = RawBuffersBuilder::default();
@@ -108,14 +179,15 @@ impl Graphics {
                             &mut builder,
                         )?;
                     }
-                }
+                },
                 DrawCommand::UpdateContext(new_context) => {
                     builder.set_context(*new_context);
                     current_context = new_context;
-                }
+                },
             }
         }
 
-        Ok(builder.take())
+        let (vertices, indices) = builder.take();
+        Ok(BufferData { vertices, indices })
     }
 }

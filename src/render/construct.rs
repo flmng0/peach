@@ -45,14 +45,14 @@ impl RawBuffersBuilder {
 }
 
 impl tess::GeometryBuilder for RawBuffersBuilder {
-    // Re-set offsets to the length of each buffer when building the
-    // geometry begins.
+    // Re-set offsets to the length of each buffer when building
+    // the geometry begins.
     fn begin_geometry(&mut self) {
         self.offsets = (self.vertices.len() as Index, self.indices.len() as Index);
     }
 
-    // When the geometry is finished, tell lyon how many vertices and
-    // indices were added.
+    // When the geometry is finished, tell lyon how many
+    // vertices and indices were added.
     fn end_geometry(&mut self) -> tess::Count {
         tess::Count {
             vertices: self.vertices.len() as Index - self.offsets.0,
@@ -96,7 +96,7 @@ impl tess::StrokeGeometryBuilder for RawBuffersBuilder {
         position: Point,
         _attributes: tess::StrokeAttributes,
     ) -> GeometryBuilderResult {
-        if let Some((color, _width)) = self.context.stroke {
+        if let Some(color) = self.context.stroke {
             self.add_vertex(position, color)
         } else {
             Err(tess::GeometryBuilderError::InvalidVertex)

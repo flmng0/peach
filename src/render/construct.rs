@@ -1,11 +1,8 @@
 //! Tessallation constructors
 
 use super::context::Context;
-
-use crate::{
-    tess,
-    types::{Color, Index, Point, RawVertex},
-};
+use crate::tess;
+use crate::types::{Color, Index, Point, RawVertex};
 
 type GeometryBuilderResult = Result<tess::VertexId, tess::GeometryBuilderError>;
 
@@ -84,7 +81,8 @@ impl tess::FillGeometryBuilder for RawBuffersBuilder {
     ) -> GeometryBuilderResult {
         if let Some(color) = self.context.fill {
             self.add_vertex(position, color)
-        } else {
+        }
+        else {
             Err(tess::GeometryBuilderError::InvalidVertex)
         }
     }
@@ -98,7 +96,8 @@ impl tess::StrokeGeometryBuilder for RawBuffersBuilder {
     ) -> GeometryBuilderResult {
         if let Some(color) = self.context.stroke {
             self.add_vertex(position, color)
-        } else {
+        }
+        else {
             Err(tess::GeometryBuilderError::InvalidVertex)
         }
     }

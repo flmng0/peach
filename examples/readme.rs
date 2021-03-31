@@ -22,7 +22,7 @@ impl Handler for Example {
         Self::default()
     }
 
-    fn update(&mut self, sketch: &mut Sketch, delta: Delta) {
+    fn update(&mut self, _sketch: &mut Sketch, delta: Delta) {
         self.x = delta.since_start.as_secs_f32().sin();
     }
 
@@ -35,7 +35,12 @@ impl Handler for Example {
         });
         gfx.no_stroke();
 
-        gfx.rotate(Angle::radians(self.x * PI));
-        gfx.square((self.x, 0.0), 0.25);
+        let center = sketch.get_size() / 2.0;
+        let pos = center.to_vector() + Vector::new(self.x, 0.0) * 100.0;
+
+        gfx.anchor_mode(AnchorMode::Center);
+        // gfx.translate(pos);
+        // gfx.rotate(Angle::radians(self.x * PI));
+        gfx.square(pos.to_point(), 40.0);
     }
 }

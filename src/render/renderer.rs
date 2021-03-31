@@ -1,13 +1,12 @@
-use super::{graphics::BufferData, Graphics};
-
-use crate::{
-    tess,
-    types::{RawVertex, Transform, Vector},
-};
-
 use thiserror::Error;
 use wgpu::util::DeviceExt;
-use winit::{dpi::PhysicalSize, window::Window};
+use winit::dpi::PhysicalSize;
+use winit::window::Window;
+
+use super::graphics::BufferData;
+use super::Graphics;
+use crate::tess;
+use crate::types::{RawVertex, Transform, Vector};
 
 #[derive(Error, Debug)]
 pub enum RendererInitError {
@@ -25,10 +24,36 @@ pub enum RenderError {
     BufferConstruct(tess::TessellationError),
 }
 
+#[repr(C)]
+#[derive(Copy, Clone)]
+struct Uniforms {
+    normalize: [f32; 16],
+}
+
+unsafe impl bytemuck::Pod for Uniforms {}
+unsafe impl bytemuck::Zeroable for Uniforms {}
+
+impl Uniforms {
+    fn generate(width: u32, height: u32) -> Self {
+        let width = width as f32;
+        let height = height as f32;
+
+        let transform =
+            Transform::scale(2.0 / width, 2.0 / height).then_translate(Vector::new(-1.0, -1.0));
+
+        Self {
+            normalize: transform.to_3d().to_array(),
+        }
+    }
+}
+
 pub(crate) struct Renderer {
     surface: wgpu::Surface,
     device: wgpu::Device,
     queue: wgpu::Queue,
+
+    uniforms_buf: wgpu::Buffer,
+    bind_group: wgpu::BindGroup,
 
     pipeline: wgpu::RenderPipeline,
 
@@ -39,7 +64,6 @@ pub(crate) struct Renderer {
 impl Renderer {
     pub async fn new(window: &Window) -> Result<Self, RendererInitError> {
         let physical = window.inner_size();
-        let logical = physical.to_logical::<f32>(window.scale_factor());
 
         let PhysicalSize { width, height } = physical;
 
@@ -68,12 +92,36 @@ impl Renderer {
             .await
             .or(Err(RendererInitError::RequestDevice))?;
 
-        let render_pipeline_layout =
-            device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                label: None,
-                bind_group_layouts: &[],
-                push_constant_ranges: &[],
-            });
+        let uniforms = Uniforms::generate(width, height);
+        let uniforms_size = std::mem::size_of::<Uniforms>() as wgpu::BufferAddress;
+        let uniforms_buf = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("uniforms buffer"),
+            contents: bytemuck::bytes_of(&uniforms),
+            usage: wgpu::BufferUsage::UNIFORM | wgpu::BufferUsage::COPY_DST,
+        });
+
+        let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+            label: Some("uniforms bind group layout"),
+            entries: &[wgpu::BindGroupLayoutEntry {
+                binding: 0,
+                visibility: wgpu::ShaderStage::VERTEX,
+                ty: wgpu::BindingType::Buffer {
+                    ty: wgpu::BufferBindingType::Uniform,
+                    has_dynamic_offset: false,
+                    min_binding_size: wgpu::BufferSize::new(uniforms_size),
+                },
+                count: None,
+            }],
+        });
+
+        let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            label: Some("uniforms bind group"),
+            layout: &bind_group_layout,
+            entries: &[wgpu::BindGroupEntry {
+                binding: 0,
+                resource: uniforms_buf.as_entire_binding(),
+            }],
+        });
 
         let shader = {
             let flags = wgpu::ShaderFlags::EXPERIMENTAL_TRANSLATION | wgpu::ShaderFlags::VALIDATION;
@@ -88,6 +136,13 @@ impl Renderer {
         };
 
         let sc_format = adapter.get_swap_chain_preferred_format(&surface);
+
+        let render_pipeline_layout =
+            device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                label: None,
+                bind_group_layouts: &[&bind_group_layout],
+                push_constant_ranges: &[],
+            });
 
         let pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
             label: None,
@@ -128,6 +183,8 @@ impl Renderer {
             surface,
             device,
             queue,
+            uniforms_buf,
+            bind_group,
             pipeline,
             sc_desc,
             swap_chain,
@@ -138,6 +195,9 @@ impl Renderer {
         self.sc_desc.width = size.width;
         self.sc_desc.height = size.height;
 
+        let uniforms = Uniforms::generate(size.width, size.height);
+        self.queue
+            .write_buffer(&self.uniforms_buf, 0, &bytemuck::bytes_of(&uniforms));
         self.swap_chain = self.device.create_swap_chain(&self.surface, &self.sc_desc);
     }
 
@@ -189,7 +249,8 @@ impl Renderer {
                                 b: color.b as f64,
                                 a: color.a as f64,
                             })
-                        } else {
+                        }
+                        else {
                             wgpu::LoadOp::Load
                         },
                         store: true,
@@ -198,13 +259,14 @@ impl Renderer {
                 depth_stencil_attachment: None,
             });
             rpass.set_pipeline(&self.pipeline);
+            rpass.set_bind_group(0, &self.bind_group, &[]);
             rpass.set_index_buffer(index_buffer.slice(..), wgpu::IndexFormat::Uint32);
             rpass.set_vertex_buffer(0, vertex_buffer.slice(..));
 
             rpass.draw_indexed(0..indice_count as u32, 0, 0..1);
         }
 
-        self.queue.submit(Some(encoder.finish()));
+        self.queue.submit(std::iter::once(encoder.finish()));
 
         Ok(())
     }

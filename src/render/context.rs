@@ -1,10 +1,15 @@
-use crate::{
-    tess,
-    types::{Color, Transform},
-};
+use crate::tess;
+use crate::types::{Color, Transform};
+
+#[derive(Debug, Copy, Clone)]
+pub enum AnchorMode {
+    First,
+    Center,
+}
 
 #[derive(Debug, Copy, Clone)]
 pub struct Context {
+    pub anchor_mode: AnchorMode,
     pub transform: Transform,
     pub fill: Option<Color>,
     pub stroke: Option<Color>,
@@ -28,6 +33,7 @@ impl Context {
 impl Default for Context {
     fn default() -> Self {
         Self {
+            anchor_mode: AnchorMode::Center,
             transform: Transform::identity(),
             fill: Some(Color::new(0.0, 0.0, 0.0, 1.0)),
             stroke: Some(Color::new(0.0, 0.0, 0.0, 1.0)),

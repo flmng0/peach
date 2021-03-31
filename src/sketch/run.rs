@@ -1,16 +1,13 @@
-use crate::render::{Graphics, Renderer};
-
-use super::{Delta, Handler, Settings, Sketch};
-
 use std::time::{Duration, Instant};
 
 use anyhow::Result;
-use winit::{
-    dpi::LogicalSize,
-    event::Event,
-    event_loop::{ControlFlow, EventLoop},
-    window::WindowBuilder,
-};
+use winit::dpi::LogicalSize;
+use winit::event::Event;
+use winit::event_loop::{ControlFlow, EventLoop};
+use winit::window::WindowBuilder;
+
+use super::{Delta, Handler, Settings, Sketch};
+use crate::render::Graphics;
 
 pub fn run<H: 'static + Handler>(settings: Settings) -> Result<()> {
     let mut builder = WindowBuilder::new()

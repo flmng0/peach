@@ -1,17 +1,12 @@
-pub use super::{Handler, Settings};
-
-use crate::{
-    render::Renderer,
-    types::{Color, Fullscreen, Key, Modifiers, MouseButton, Point, Size},
-};
-
 use std::collections::HashMap;
 
-use winit::{
-    dpi::LogicalSize,
-    event::{ElementState, KeyboardInput, WindowEvent},
-    window::Window,
-};
+use winit::dpi::LogicalSize;
+use winit::event::{ElementState, KeyboardInput, WindowEvent};
+use winit::window::Window;
+
+pub use super::{Handler, Settings};
+use crate::render::Renderer;
+use crate::types::{Color, Fullscreen, Key, Modifiers, MouseButton, Point, Size};
 
 pub struct Sketch {
     pub(super) window: Window,
@@ -126,10 +121,12 @@ impl Sketch {
 
     pub fn get_size(&self) -> Size {
         let physical_size = self.window.inner_size();
-        let scale_factor = self.window.scale_factor();
-        let logical_size = physical_size.to_logical(scale_factor);
+        // let scale_factor = self.window.scale_factor();
+        // let logical_size =
+        // physical_size.to_logical(scale_factor);
 
-        Size::new(logical_size.width, logical_size.height)
+        // Size::new(logical_size.width, logical_size.height)
+        Size::new(physical_size.width as f32, physical_size.height as f32)
     }
 
     pub fn get_clear_color(&self) -> Option<Color> {

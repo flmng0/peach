@@ -2,11 +2,11 @@ mod handler;
 pub(crate) mod run;
 mod sketch;
 
-use crate::types::Size;
-
-pub use self::{handler::Handler, sketch::Sketch};
-
 use std::time::{Duration, Instant};
+
+pub use self::handler::Handler;
+pub use self::sketch::Sketch;
+use crate::types::Size;
 
 #[derive(Copy, Clone)]
 pub struct Delta {

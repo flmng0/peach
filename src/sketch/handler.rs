@@ -1,9 +1,6 @@
 use super::{Delta, Sketch};
-
-use crate::{
-    render::Graphics,
-    types::{Key, MouseButton, Point},
-};
+use crate::render::Graphics;
+use crate::types::{Key, MouseButton, Point};
 
 #[allow(unused_variables)]
 pub trait Handler {

@@ -2,12 +2,14 @@ pub mod render;
 pub mod sketch;
 pub mod types;
 
+pub use {lyon_tessellation as tess, rgb};
+
 pub use self::sketch::run::run;
 
-pub use lyon_tessellation as tess;
-pub use rgb;
-
 pub mod prelude {
-    pub use crate::{render::*, sketch::*, types::*};
     pub use std::f32::consts::*;
+
+    pub use crate::render::*;
+    pub use crate::sketch::*;
+    pub use crate::types::*;
 }

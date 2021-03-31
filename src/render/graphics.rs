@@ -1,11 +1,10 @@
-use super::{construct::RawBuffersBuilder, context::Context};
-
-use crate::{
-    tess::{self, path::iterator::FromPolyline},
-    types::*,
-};
-
 use anyhow::Result;
+
+use super::construct::RawBuffersBuilder;
+use super::context::{AnchorMode, Context};
+use crate::tess;
+use crate::tess::path::iterator::FromPolyline;
+use crate::types::*;
 
 #[derive(Clone)]
 enum DrawCommand {
@@ -42,6 +41,9 @@ impl Graphics {
     }
 
     fn context_mut(&mut self) -> &mut Context {
+        // Assume the context will be change if it has been
+        // requested mutably.
+        self.context_dirty = true;
         self.context_stack
             .last_mut()
             .expect("Uh oh! Impossible thing happened!")
@@ -65,9 +67,26 @@ impl Graphics {
         }
     }
 
-    fn draw(&mut self, points: &[Point], closed: bool) {
+    fn align_points(&self, points: &[Point], bounds: Option<BoundingBox>) -> Vec<Point> {
+        match self.context().anchor_mode {
+            AnchorMode::First => points.to_vec(),
+            AnchorMode::Center => {
+                let bounds = bounds.unwrap_or_else(move || BoundingBox::from_points(points));
+
+                let center = bounds.center();
+                let diff = center - bounds.min;
+
+                points.iter().map(|point| *point - diff).collect()
+            },
+        }
+    }
+
+    fn draw(&mut self, points: &[Point], closed: bool, bounds: Option<BoundingBox>) {
         self.update_context_if_dirty();
-        let command = DrawCommand::Draw(closed, points.to_vec());
+
+        let points = self.align_points(points, bounds);
+
+        let command = DrawCommand::Draw(closed, points);
         self.draw_commands.push(command);
     }
 
@@ -88,17 +107,14 @@ impl Graphics {
     where
         C: Into<Color>,
     {
-        self.context_dirty = true;
         self.context_mut().fill = Some(color.into());
     }
 
     pub fn no_fill(&mut self) {
-        self.context_dirty = true;
         self.context_mut().fill = None;
     }
 
     pub fn stroke_weight(&mut self, weight: f32) {
-        self.context_dirty = true;
         self.context_mut().stroke_weight = weight;
     }
 
@@ -106,17 +122,18 @@ impl Graphics {
     where
         C: Into<Color>,
     {
-        self.context_dirty = true;
         self.context_mut().stroke = Some(color.into());
     }
 
     pub fn no_stroke(&mut self) {
-        self.context_dirty = true;
         self.context_mut().stroke = None;
     }
 
+    pub fn anchor_mode(&mut self, mode: AnchorMode) {
+        self.context_mut().anchor_mode = mode;
+    }
+
     pub fn rotate(&mut self, angle: Angle) {
-        self.context_dirty = true;
         *self.transform_mut() = self.transform().pre_rotate(angle);
     }
 
@@ -124,7 +141,6 @@ impl Graphics {
     where
         V: Into<Vector>,
     {
-        self.context_dirty = true;
         *self.transform_mut() = self.transform().pre_translate(by.into());
     }
 
@@ -143,6 +159,10 @@ impl Graphics {
                 position + Vector::new(0.0, size.height),
             ],
             true,
+            Some(BoundingBox {
+                min: position,
+                max: position + size.to_vector(),
+            }),
         );
     }
 

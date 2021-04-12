@@ -6,7 +6,7 @@ use std::time::{Duration, Instant};
 
 pub use self::handler::Handler;
 pub use self::sketch::Sketch;
-use crate::types::Size;
+use crate::types::{Key, Size};
 
 #[derive(Copy, Clone)]
 pub struct Delta {
@@ -44,6 +44,7 @@ pub struct Settings<'a> {
     pub size: Size,
     pub decorations: bool,
     pub framerate: Option<u32>,
+    pub exit_key: Option<Key>,
 }
 
 impl<'a> Default for Settings<'a> {
@@ -52,7 +53,8 @@ impl<'a> Default for Settings<'a> {
             title: None,
             size: Size::new(800.0, 600.0),
             decorations: true,
-            framerate: Some(60),
+            framerate: None,
+            exit_key: None,
         }
     }
 }

@@ -166,7 +166,7 @@ impl Graphics {
         );
     }
 
-    pub fn square<P>(&mut self, position: P, size: f32)
+    pub fn square<P>(&mut self, position: P, size: Scalar)
     where
         P: Into<Point>,
     {
@@ -184,9 +184,11 @@ impl Graphics {
         for command in self.draw_commands.iter() {
             match command {
                 DrawCommand::Draw(closed, points) => {
+                    let points = points.iter().map(|p| p.cast::<GpuScalar>());
+
                     if current_context.fill.is_some() {
                         fill_tess.tessellate(
-                            FromPolyline::new(*closed, points.iter().cloned()),
+                            FromPolyline::new(*closed, points.clone()),
                             &current_context.get_fill_options(),
                             &mut builder,
                         )?;
@@ -194,7 +196,7 @@ impl Graphics {
 
                     if current_context.stroke.is_some() {
                         stroke_tess.tessellate(
-                            FromPolyline::new(*closed, points.iter().cloned()),
+                            FromPolyline::new(*closed, points),
                             &current_context.get_stroke_options(),
                             &mut builder,
                         )?;

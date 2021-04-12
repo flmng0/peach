@@ -7,7 +7,7 @@ pub use {lyon_tessellation as tess, rgb};
 pub use self::sketch::run::run;
 
 pub mod prelude {
-    pub use std::f32::consts::*;
+    pub use std::f64::consts::*;
 
     pub use crate::render::*;
     pub use crate::sketch::*;

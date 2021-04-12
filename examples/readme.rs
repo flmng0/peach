@@ -13,7 +13,7 @@ fn main() {
 
 #[derive(Default)]
 struct Example {
-    x: f32,
+    x: f64,
 }
 
 impl Handler for Example {
@@ -23,7 +23,7 @@ impl Handler for Example {
     }
 
     fn update(&mut self, _sketch: &mut Sketch, delta: Delta) {
-        self.x = delta.since_start.as_secs_f32().sin();
+        self.x = delta.since_start.as_secs_f64().sin();
     }
 
     fn draw(&self, sketch: &mut Sketch, gfx: &mut Graphics) {
@@ -39,8 +39,8 @@ impl Handler for Example {
         let pos = center.to_vector() + Vector::new(self.x, 0.0) * 100.0;
 
         gfx.anchor_mode(AnchorMode::Center);
-        // gfx.translate(pos);
-        // gfx.rotate(Angle::radians(self.x * PI));
-        gfx.square(pos.to_point(), 40.0);
+        gfx.translate(pos);
+        gfx.rotate(Angle::radians(self.x * PI));
+        gfx.square(Point::zero(), 20.0 * self.x.tan());
     }
 }

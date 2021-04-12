@@ -2,7 +2,7 @@
 
 use super::context::Context;
 use crate::tess;
-use crate::types::{Color, Index, Point, RawVertex};
+use crate::types::{Color, GpuScalar, Index, Point, RawVertex};
 
 type GeometryBuilderResult = Result<tess::VertexId, tess::GeometryBuilderError>;
 
@@ -18,8 +18,15 @@ pub(super) struct RawBuffersBuilder {
 
 impl RawBuffersBuilder {
     fn add_vertex(&mut self, position: Point, color: Color) -> GeometryBuilderResult {
-        let position: [f32; 2] = self.context.transform.transform_point(position).into();
-        let color: [f32; 4] = color.into();
+        use rgb::ComponentMap;
+
+        let position: [GpuScalar; 2] = self
+            .context
+            .transform
+            .transform_point(position)
+            .cast()
+            .into();
+        let color: [GpuScalar; 4] = color.map(|p| p as GpuScalar).into();
 
         self.vertices.push(RawVertex { position, color });
 
@@ -76,11 +83,11 @@ impl tess::GeometryBuilder for RawBuffersBuilder {
 impl tess::FillGeometryBuilder for RawBuffersBuilder {
     fn add_fill_vertex(
         &mut self,
-        position: Point,
+        position: tess::math::Point,
         _attributes: tess::FillAttributes,
     ) -> GeometryBuilderResult {
         if let Some(color) = self.context.fill {
-            self.add_vertex(position, color)
+            self.add_vertex(position.cast(), color)
         }
         else {
             Err(tess::GeometryBuilderError::InvalidVertex)
@@ -91,11 +98,11 @@ impl tess::FillGeometryBuilder for RawBuffersBuilder {
 impl tess::StrokeGeometryBuilder for RawBuffersBuilder {
     fn add_stroke_vertex(
         &mut self,
-        position: Point,
+        position: tess::math::Point,
         _attributes: tess::StrokeAttributes,
     ) -> GeometryBuilderResult {
         if let Some(color) = self.context.stroke {
-            self.add_vertex(position, color)
+            self.add_vertex(position.cast(), color)
         }
         else {
             Err(tess::GeometryBuilderError::InvalidVertex)

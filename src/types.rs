@@ -6,20 +6,22 @@ pub use winit::window::Fullscreen;
 #[derive(Debug, Clone, Copy)]
 #[repr(C)]
 pub(crate) struct RawVertex {
-    pub position: [f32; 2],
-    pub color: [f32; 4],
+    pub position: [GpuScalar; 2],
+    pub color: [GpuScalar; 4],
 }
 
 unsafe impl bytemuck::Pod for RawVertex {}
 unsafe impl bytemuck::Zeroable for RawVertex {}
 
 // Common types
+pub type Scalar = f64;
+pub type GpuScalar = f32;
 pub type Index = u32;
-pub type Color = rgb::RGBA<f32>;
+pub type Color = rgb::RGBA<Scalar>;
 
 macro_rules! define_euclid {
     ($public_type:ident, $euclid_type:ident) => {
-        pub type $public_type = euclid::default::$euclid_type<f32>;
+        pub type $public_type = euclid::default::$euclid_type<Scalar>;
     };
 }
 
@@ -31,4 +33,4 @@ define_euclid!(Translation, Translation2D);
 define_euclid!(Vector, Vector2D);
 define_euclid!(BoundingBox, Box2D);
 
-pub type Angle = euclid::Angle<f32>;
+pub type Angle = euclid::Angle<Scalar>;

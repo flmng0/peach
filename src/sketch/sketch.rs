@@ -6,7 +6,7 @@ use winit::window::Window;
 
 pub use super::{Handler, Settings};
 use crate::render::Renderer;
-use crate::types::{Color, Fullscreen, Key, Modifiers, MouseButton, Point, Size};
+use crate::types::{Color, Fullscreen, Key, Modifiers, MouseButton, Point, Scalar, Size};
 
 pub struct Sketch {
     pub(super) window: Window,
@@ -65,7 +65,7 @@ impl Sketch {
                 }
             },
             WindowEvent::CursorMoved { position, .. } => {
-                let logical = position.to_logical::<f32>(self.window.scale_factor());
+                let logical = position.to_logical::<Scalar>(self.window.scale_factor());
                 self.mouse_position = Point::new(logical.x, logical.y);
 
                 handler.mouse_moved(self, self.mouse_position);
@@ -126,7 +126,10 @@ impl Sketch {
         // physical_size.to_logical(scale_factor);
 
         // Size::new(logical_size.width, logical_size.height)
-        Size::new(physical_size.width as f32, physical_size.height as f32)
+        Size::new(
+            physical_size.width as Scalar,
+            physical_size.height as Scalar,
+        )
     }
 
     pub fn get_clear_color(&self) -> Option<Color> {

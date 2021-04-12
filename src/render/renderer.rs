@@ -3,10 +3,9 @@ use wgpu::util::DeviceExt;
 use winit::dpi::PhysicalSize;
 use winit::window::Window;
 
-use super::graphics::BufferData;
-use super::Graphics;
+use super::graphics::{BufferData, Graphics};
 use crate::tess;
-use crate::types::{RawVertex, Transform, Vector};
+use crate::types::{RawVertex, Scalar, Transform, Vector};
 
 #[derive(Error, Debug)]
 pub enum RendererInitError {
@@ -35,14 +34,14 @@ unsafe impl bytemuck::Zeroable for Uniforms {}
 
 impl Uniforms {
     fn generate(width: u32, height: u32) -> Self {
-        let width = width as f32;
-        let height = height as f32;
+        let width = width as Scalar;
+        let height = height as Scalar;
 
         let transform =
             Transform::scale(2.0 / width, 2.0 / height).then_translate(Vector::new(-1.0, -1.0));
 
         Self {
-            normalize: transform.to_3d().to_array(),
+            normalize: transform.cast::<f32>().to_3d().to_array(),
         }
     }
 }

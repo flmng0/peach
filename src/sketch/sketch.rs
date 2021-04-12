@@ -17,13 +17,14 @@ pub struct Sketch {
     running: bool,
     pub(super) framerate: Option<u32>,
     pub(super) framerate_dirty: bool,
+    exit_key: Option<Key>,
     mouse_position: Point,
     mouse_buttons: HashMap<MouseButton, bool>,
     keys: HashMap<Key, bool>,
 }
 
 impl Sketch {
-    pub(super) fn new(window: Window, framerate: Option<u32>) -> Self {
+    pub(super) fn new(window: Window, settings: Settings) -> Self {
         let size = window.inner_size().to_logical(window.scale_factor());
         let renderer = futures::executor::block_on(Renderer::new(&window)).unwrap();
 
@@ -34,8 +35,9 @@ impl Sketch {
             size: Size::new(size.width, size.height),
             modifiers: Modifiers::default(),
             running: true,
-            framerate,
+            framerate: settings.framerate,
             framerate_dirty: false,
+            exit_key: settings.exit_key,
             mouse_position: Point::zero(),
             mouse_buttons: HashMap::new(),
             keys: HashMap::new(),
@@ -57,6 +59,12 @@ impl Sketch {
                     },
                 ..
             } => {
+                if let Some(exit_key) = self.exit_key {
+                    if exit_key == key {
+                        self.running = false;
+                    }
+                }
+
                 self.keys.insert(key, state == ElementState::Pressed);
 
                 match state {

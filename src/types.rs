@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 // Re-exports
 pub use winit::event::{ModifiersState as Modifiers, MouseButton, VirtualKeyCode as Key};
 pub use winit::window::Fullscreen;
@@ -14,7 +16,11 @@ unsafe impl bytemuck::Pod for RawVertex {}
 unsafe impl bytemuck::Zeroable for RawVertex {}
 
 // Common types
+#[cfg(feature = "force_f32")]
+pub type Scalar = f32;
+#[cfg(not(feature = "force_f32"))]
 pub type Scalar = f64;
+
 pub type GpuScalar = f32;
 pub type Index = u32;
 pub type Color = rgb::RGBA<Scalar>;
@@ -34,3 +40,19 @@ define_euclid!(Vector, Vector2D);
 define_euclid!(BoundingBox, Box2D);
 
 pub type Angle = euclid::Angle<Scalar>;
+
+pub trait ScalarDuration {
+    fn as_secs_scalar(&self) -> Scalar;
+}
+
+impl ScalarDuration for Duration {
+    #[cfg(feature = "force_f32")]
+    fn as_secs_scalar(&self) -> Scalar {
+        self.as_secs_f32()
+    }
+
+    #[cfg(not(feature = "force_f32"))]
+    fn as_secs_scalar(&self) -> Scalar {
+        self.as_secs_f64()
+    }
+}

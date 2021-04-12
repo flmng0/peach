@@ -5,6 +5,7 @@ fn main() {
         title: Some("Example Sketch"),
         size: [512.0, 512.0].into(),
         framerate: None,
+        exit_key: Some(Key::Escape),
         ..Default::default()
     };
 
@@ -13,7 +14,7 @@ fn main() {
 
 #[derive(Default)]
 struct Example {
-    x: f64,
+    x: Scalar,
 }
 
 impl Handler for Example {
@@ -23,7 +24,7 @@ impl Handler for Example {
     }
 
     fn update(&mut self, _sketch: &mut Sketch, delta: Delta) {
-        self.x = delta.since_start.as_secs_f64().sin();
+        self.x = delta.since_start.as_secs_scalar().sin();
     }
 
     fn draw(&self, sketch: &mut Sketch, gfx: &mut Graphics) {
@@ -41,6 +42,6 @@ impl Handler for Example {
         gfx.anchor_mode(AnchorMode::Center);
         gfx.translate(pos);
         gfx.rotate(Angle::radians(self.x * PI));
-        gfx.square(Point::zero(), 20.0 * self.x.tan());
+        gfx.square(Point::zero(), 10.0 + 20.0 * self.x.sin().abs());
     }
 }

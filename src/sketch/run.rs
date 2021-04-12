@@ -21,7 +21,7 @@ pub fn run<H: 'static + Handler>(settings: Settings) -> Result<()> {
     let event_loop = EventLoop::new();
     let window = builder.build(&event_loop)?;
 
-    let mut sketch = Sketch::new(window, settings.framerate);
+    let mut sketch = Sketch::new(window, settings);
     let mut handler = H::setup(&mut sketch);
 
     let mut delta = Delta::new();

@@ -12,6 +12,11 @@ readme = "README.md"
 
 keywords = ["processing", "sandbox", "drawing"]
 
+[features]
+default = []
+
+force_f32 = []
+
 [dependencies]
 anyhow = "1.0.36"
 bytemuck = "1.5.1"

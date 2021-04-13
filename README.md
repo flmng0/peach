@@ -2,7 +2,7 @@
 [Processing](https://processing.org)-esque sandboxing library for Rust with [wgpu](https://github.com/gfx-rs/wgpu-rs).
 
 # Example
-See the [examples](examples/) folder for more code snippets, as well as screen (eventually) shots.
+See the [examples](examples/) folder for more code snippets, as well as (eventually) screen shots.
 ```rust
 use peach::prelude::*;
 

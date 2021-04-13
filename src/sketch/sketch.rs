@@ -73,8 +73,7 @@ impl Sketch {
                 }
             },
             WindowEvent::CursorMoved { position, .. } => {
-                let logical = position.to_logical::<Scalar>(self.window.scale_factor());
-                self.mouse_position = Point::new(logical.x, logical.y);
+                self.mouse_position = Point::new(position.x as Scalar, position.y as Scalar);
 
                 handler.mouse_moved(self, self.mouse_position);
             },
@@ -90,9 +89,13 @@ impl Sketch {
             WindowEvent::Resized(size) => {
                 self.renderer.resize(size);
 
-                let logical = size.to_logical(self.window.scale_factor());
-                self.size.width = logical.width;
-                self.size.height = logical.height;
+                self.size.width = size.width as Scalar;
+                self.size.height = size.height as Scalar;
+                // let logical =
+                // size.to_logical(self.window.
+                // scale_factor());
+                // self.size.width = logical.width;
+                // self.size.height = logical.height;
             },
             _ => {},
         }

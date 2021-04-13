@@ -27,6 +27,7 @@ impl Handler for Example {
         self.x = delta.since_start.as_secs_scalar().sin();
     }
 
+    #[rustfmt::skip]
     fn draw(&self, sketch: &mut Sketch, gfx: &mut Graphics) {
         gfx.fill(Color {
             r: 1.0,
@@ -34,14 +35,23 @@ impl Handler for Example {
             b: 0.66,
             a: 1.0,
         });
-        gfx.no_stroke();
 
-        let center = sketch.get_size() / 2.0;
+        let size = Point::from(sketch.get_size().to_tuple());
+        let center = size / 2.0;
         let pos = center.to_vector() + Vector::new(self.x, 0.0) * 100.0;
 
-        gfx.anchor_mode(AnchorMode::Center);
-        gfx.translate(pos);
-        gfx.rotate(Angle::radians(self.x * PI));
-        gfx.square(Point::zero(), 10.0 + 20.0 * self.x.sin().abs());
+        gfx.stroke(colors::BLACK);
+        gfx.stroke_weight(2.0);
+        gfx.square(sketch.get_mouse_position(), 20.0);
+
+        gfx.save();
+            gfx.stroke(colors::BLUE);
+            gfx.anchor_mode(AnchorMode::Center);
+            gfx.rotate(Angle::radians(self.x * PI));
+            gfx.translate(pos);
+            gfx.square(Point::zero(), 10.0 + 20.0 * self.x.sin().abs());
+        gfx.restore();
+
+        gfx.square( size - sketch.get_mouse_position().to_vector(), 20.0);
     }
 }

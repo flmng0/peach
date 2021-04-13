@@ -92,11 +92,13 @@ impl Graphics {
 
     pub fn save(&mut self) {
         self.context_stack.push(self.context().clone());
+        self.context_dirty = true;
     }
 
     pub fn restore(&mut self) {
         if self.context_stack.len() > 1 {
             self.context_stack.pop();
+            self.context_dirty = true;
         }
         // else {
         // info!("Cannot restore context, as no context has
@@ -134,14 +136,14 @@ impl Graphics {
     }
 
     pub fn rotate(&mut self, angle: Angle) {
-        *self.transform_mut() = self.transform().pre_rotate(angle);
+        *self.transform_mut() = self.transform().then_rotate(angle);
     }
 
     pub fn translate<V>(&mut self, by: V)
     where
         V: Into<Vector>,
     {
-        *self.transform_mut() = self.transform().pre_translate(by.into());
+        *self.transform_mut() = self.transform().then_translate(by.into());
     }
 
     pub fn rect<P, S>(&mut self, position: P, size: S)
@@ -184,7 +186,7 @@ impl Graphics {
         for command in self.draw_commands.iter() {
             match command {
                 DrawCommand::Draw(closed, points) => {
-                    let points = points.iter().map(|p| p.cast::<GpuScalar>());
+                    let points = points.iter().map(|p| p.cast::<f32>());
 
                     if current_context.fill.is_some() {
                         fill_tess.tessellate(

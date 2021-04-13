@@ -23,5 +23,5 @@ fn vs_main() {
 
 [[stage(fragment)]]
 fn fs_main() {
-    out_color = vec4<f32>(1.0, 0.0, 0.0, 1.0);
+    out_color = in_color;
 }

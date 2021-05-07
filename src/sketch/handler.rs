@@ -1,4 +1,4 @@
-use super::{Delta, Sketch};
+use super::Sketch;
 use crate::render::Graphics;
 use crate::types::{Key, MouseButton, Point};
 
@@ -7,8 +7,7 @@ pub trait Handler {
     fn setup(sketch: &mut Sketch) -> Self;
     fn quit(&mut self) {}
 
-    fn update(&mut self, sketch: &mut Sketch, delta: Delta);
-    fn draw(&self, sketch: &mut Sketch, gfx: &mut Graphics);
+    fn draw(&mut self, sketch: &mut Sketch, gfx: &mut Graphics);
 
     fn key_pressed(&mut self, sketch: &mut Sketch, key: Key) {}
     fn key_released(&mut self, sketch: &mut Sketch, key: Key) {}

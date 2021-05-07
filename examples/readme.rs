@@ -23,12 +23,10 @@ impl Handler for Example {
         Self::default()
     }
 
-    fn update(&mut self, _sketch: &mut Sketch, delta: Delta) {
-        self.x = delta.since_start.as_secs_scalar().sin();
-    }
-
     #[rustfmt::skip]
-    fn draw(&self, sketch: &mut Sketch, gfx: &mut Graphics) {
+    fn draw(&mut self, sketch: &mut Sketch, gfx: &mut Graphics) {
+        self.x = sketch.get_time_since_start().as_secs_scalar().sin();
+
         gfx.fill(Color {
             r: 1.0,
             g: 0.33,
@@ -37,7 +35,7 @@ impl Handler for Example {
         });
 
         let size = Point::from(sketch.get_size().to_tuple());
-        let center = size / 2.0;
+        let center = sketch.get_center();
         let pos = center.to_vector() + Vector::new(self.x, 0.0) * 100.0;
 
         gfx.stroke(colors::BLACK);

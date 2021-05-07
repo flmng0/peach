@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::time::{Duration, Instant};
 
 use winit::dpi::LogicalSize;
 use winit::event::{ElementState, KeyboardInput, WindowEvent};
@@ -12,11 +13,11 @@ pub struct Sketch {
     pub(super) window: Window,
     pub(super) renderer: Renderer,
     pub(super) clear_color: Option<Color>,
-    size: Size,
     modifiers: Modifiers,
     running: bool,
     pub(super) framerate: Option<u32>,
     pub(super) framerate_dirty: bool,
+    start_instant: Instant,
     exit_key: Option<Key>,
     mouse_position: Point,
     mouse_buttons: HashMap<MouseButton, bool>,
@@ -25,18 +26,17 @@ pub struct Sketch {
 
 impl Sketch {
     pub(super) fn new(window: Window, settings: Settings) -> Self {
-        let size = window.inner_size().to_logical(window.scale_factor());
-        let renderer = futures::executor::block_on(Renderer::new(&window)).unwrap();
+        let renderer = pollster::block_on(Renderer::new(&window)).unwrap();
 
         Self {
             window,
             renderer,
             clear_color: None,
-            size: Size::new(size.width, size.height),
             modifiers: Modifiers::default(),
             running: true,
             framerate: settings.framerate,
             framerate_dirty: false,
+            start_instant: Instant::now(),
             exit_key: settings.exit_key,
             mouse_position: Point::zero(),
             mouse_buttons: HashMap::new(),
@@ -89,8 +89,6 @@ impl Sketch {
             WindowEvent::Resized(size) => {
                 self.renderer.resize(size);
 
-                self.size.width = size.width as Scalar;
-                self.size.height = size.height as Scalar;
                 // let logical =
                 // size.to_logical(self.window.
                 // scale_factor());
@@ -105,8 +103,8 @@ impl Sketch {
         !self.running
     }
 
-    pub fn center(&self) -> Point {
-        Point::new(self.size.width / 2.0, self.size.height / 2.0)
+    pub fn get_time_since_start(&self) -> Duration {
+        self.start_instant.elapsed()
     }
 
     pub fn get_key(&self, key: Key) -> bool {

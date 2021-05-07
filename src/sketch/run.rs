@@ -44,9 +44,6 @@ pub fn run<H: 'static + Handler>(settings: Settings) -> Result<()> {
 
                 delta.update();
 
-                handler.update(&mut sketch, delta);
-                delta.last_update_instant = Instant::now();
-
                 if draw {
                     sketch.window.request_redraw();
                 }
@@ -55,9 +52,9 @@ pub fn run<H: 'static + Handler>(settings: Settings) -> Result<()> {
                 let mut gfx = Graphics::new(sketch.get_clear_color());
 
                 handler.draw(&mut sketch, &mut gfx);
-                delta.last_draw_instant = Instant::now();
-
                 sketch.renderer.render(gfx).unwrap();
+
+                delta.last_draw_instant = Instant::now();
             },
             Event::LoopDestroyed => {
                 handler.quit();

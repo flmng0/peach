@@ -23,12 +23,7 @@ impl Handler for Example {
         println!("Quitting!");
     }
 
-    fn update(&mut self, sketch: &mut Sketch, delta: Delta) {
-        // println!("Updated!");
-        // Too loud!
-    }
-
-    fn draw(&self, sketch: &mut Sketch, gfx: &mut Graphics) {
+    fn draw(&mut self, sketch: &mut Sketch, gfx: &mut Graphics) {
         println!("Drew!");
     }
 

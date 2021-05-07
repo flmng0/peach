@@ -10,10 +10,8 @@ use crate::types::{Key, Size};
 
 #[derive(Copy, Clone)]
 pub struct Delta {
-    pub(self) last_update_instant: Instant,
     pub(self) last_draw_instant: Instant,
     pub(self) start_instant: Instant,
-    pub since_last_update: Duration,
     pub since_last_draw: Duration,
     pub since_start: Duration,
 }
@@ -23,17 +21,14 @@ impl Delta {
         let now = Instant::now();
 
         Self {
-            last_update_instant: now,
             last_draw_instant: now,
             start_instant: now,
-            since_last_update: Duration::default(),
             since_last_draw: Duration::default(),
             since_start: Duration::default(),
         }
     }
 
     pub(self) fn update(&mut self) {
-        self.since_last_update = self.last_update_instant.elapsed();
         self.since_last_draw = self.last_draw_instant.elapsed();
         self.since_start = self.start_instant.elapsed();
     }

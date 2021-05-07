@@ -4,6 +4,7 @@ fn main() {
     let settings = Settings {
         title: Some("Example Sketch"),
         size: [512.0, 512.0].into(),
+        framerate: Some(1),
         ..Default::default()
     };
 

@@ -6,7 +6,7 @@ use winit::event::Event;
 use winit::event_loop::{ControlFlow, EventLoop};
 use winit::window::WindowBuilder;
 
-use super::{Delta, Handler, Settings, Sketch};
+use super::{Handler, Settings, Sketch};
 use crate::render::Graphics;
 
 pub fn run<H: 'static + Handler>(settings: Settings) -> Result<()> {
@@ -24,7 +24,7 @@ pub fn run<H: 'static + Handler>(settings: Settings) -> Result<()> {
     let mut sketch = Sketch::new(window, settings);
     let mut handler = H::setup(&mut sketch);
 
-    let mut delta = Delta::new();
+    let mut last_draw_time = Instant::now();
     let mut frame_delay = Duration::default();
 
     event_loop.run(move |event, _, control_flow| {
@@ -37,12 +37,11 @@ pub fn run<H: 'static + Handler>(settings: Settings) -> Result<()> {
                     sketch.framerate_dirty = false;
                 }
 
+                let delta = last_draw_time.elapsed();
                 let draw = match sketch.framerate {
-                    Some(_) => delta.since_last_draw <= frame_delay,
+                    Some(_) => delta >= frame_delay,
                     None => true,
                 };
-
-                delta.update();
 
                 if draw {
                     sketch.window.request_redraw();
@@ -54,7 +53,7 @@ pub fn run<H: 'static + Handler>(settings: Settings) -> Result<()> {
                 handler.draw(&mut sketch, &mut gfx);
                 sketch.renderer.render(gfx).unwrap();
 
-                delta.last_draw_instant = Instant::now();
+                last_draw_time = Instant::now();
             },
             Event::LoopDestroyed => {
                 handler.quit();

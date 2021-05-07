@@ -35,7 +35,7 @@ impl Sketch {
             modifiers: Modifiers::default(),
             running: true,
             framerate: settings.framerate,
-            framerate_dirty: false,
+            framerate_dirty: true,
             start_instant: Instant::now(),
             exit_key: settings.exit_key,
             mouse_position: Point::zero(),

@@ -1,6 +1,6 @@
 [package]
 name = "peach"
-version = "0.3.0"
+version = "0.4.0"
 authors = ["Timothy Davis <tmthydvs@gmail.com>"]
 edition = "2018"
 
@@ -18,12 +18,13 @@ default = []
 force_f32 = []
 
 [dependencies]
-anyhow = "1.0.36"
+anyhow = "1.0.40"
 bytemuck = "1.5.1"
 euclid = "0.22.1"
 lyon_tessellation = "0.16.2"
 pollster = "0.2.4"
-rgb = "0.8.25"
-thiserror = "1.0.22"
-wgpu = "0.7.0"
+rgb = "0.8.27"
+thiserror = "1.0.24"
+wgpu = "0.8.0"
+wgpu-subscriber = "0.1.0"
 winit = "0.24.0"

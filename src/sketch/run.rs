@@ -10,6 +10,8 @@ use super::{Handler, Settings, Sketch};
 use crate::render::Graphics;
 
 pub fn run<H: 'static + Handler>(settings: Settings) -> Result<()> {
+    wgpu_subscriber::initialize_default_subscriber(None);
+
     let mut builder = WindowBuilder::new()
         .with_inner_size(LogicalSize::new(settings.size.width, settings.size.height))
         .with_decorations(settings.decorations);

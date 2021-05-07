@@ -134,7 +134,9 @@ impl Renderer {
             })
         };
 
-        let sc_format = adapter.get_swap_chain_preferred_format(&surface);
+        let sc_format = adapter
+            .get_swap_chain_preferred_format(&surface)
+            .unwrap_or_else(|| wgpu::TextureFormat::Bgra8UnormSrgb);
 
         let render_pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
@@ -153,8 +155,8 @@ impl Renderer {
                     array_stride: core::mem::size_of::<RawVertex>() as u64,
                     step_mode: wgpu::InputStepMode::Vertex,
                     attributes: &wgpu::vertex_attr_array![
-                        0 => Float2,
-                        1 => Float4,
+                        0 => Float32x2,
+                        1 => Float32x4,
                     ],
                 }],
             },
@@ -237,8 +239,8 @@ impl Renderer {
         {
             let mut rpass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: None,
-                color_attachments: &[wgpu::RenderPassColorAttachmentDescriptor {
-                    attachment: &frame.view,
+                color_attachments: &[wgpu::RenderPassColorAttachment {
+                    view: &frame.view,
                     resolve_target: None,
                     ops: wgpu::Operations {
                         load: if let Some(color) = clear_color {

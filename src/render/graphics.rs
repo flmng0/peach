@@ -17,10 +17,11 @@ pub(crate) struct BufferData {
     pub indices: Vec<Index>,
 }
 
+#[derive(Clone)]
 pub struct Graphics {
     pub(super) clear_color: Option<Color>,
     draw_commands: Vec<DrawCommand>,
-    context_stack: Vec<Context>,
+    context: Context,
     context_dirty: bool,
 }
 
@@ -29,24 +30,20 @@ impl Graphics {
         Self {
             clear_color,
             draw_commands: Vec::new(),
-            context_stack: vec![Context::default()],
+            context: Context::default(),
             context_dirty: false,
         }
     }
 
     fn context(&self) -> &Context {
-        self.context_stack
-            .last()
-            .expect("Uh oh! Impossible thing happened!")
+        &self.context
     }
 
     fn context_mut(&mut self) -> &mut Context {
         // Assume the context will be change if it has been
         // requested mutably.
         self.context_dirty = true;
-        self.context_stack
-            .last_mut()
-            .expect("Uh oh! Impossible thing happened!")
+        &mut self.context
     }
 
     fn transform(&self) -> &Transform {
@@ -57,12 +54,16 @@ impl Graphics {
         &mut self.context_mut().transform
     }
 
+    fn update_context(&mut self) {
+        let context = self.context().clone();
+        let command = DrawCommand::UpdateContext(context);
+
+        self.draw_commands.push(command);
+    }
+
     fn update_context_if_dirty(&mut self) {
         if self.context_dirty {
-            let context = self.context().clone();
-            let command = DrawCommand::UpdateContext(context);
-
-            self.draw_commands.push(command);
+            self.update_context();
             self.context_dirty = false;
         }
     }
@@ -90,19 +91,17 @@ impl Graphics {
         self.draw_commands.push(command);
     }
 
-    pub fn save(&mut self) {
-        self.context_stack.push(self.context().clone());
-        self.context_dirty = true;
-    }
+    pub fn scoped<C>(&mut self, mut cb: C)
+    where
+        C: FnMut(&mut Self),
+    {
+        let mut clone = self.clone();
 
-    pub fn restore(&mut self) {
-        if self.context_stack.len() > 1 {
-            self.context_stack.pop();
-            self.context_dirty = true;
-        }
-        // else {
-        // info!("Cannot restore context, as no context has
-        // been saved!"); }
+        cb(&mut clone);
+
+        self.draw_commands.extend_from_slice(&clone.draw_commands);
+
+        self.update_context();
     }
 
     pub fn fill<C>(&mut self, color: C)

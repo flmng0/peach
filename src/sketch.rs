@@ -5,9 +5,43 @@ use winit::dpi::LogicalSize;
 use winit::event::{ElementState, KeyboardInput, WindowEvent};
 use winit::window::Window;
 
-pub use super::{Handler, Settings};
-use crate::render::Renderer;
+use crate::render::{Graphics, Renderer};
 use crate::types::{Color, Fullscreen, Key, Modifiers, MouseButton, Point, Scalar, Size};
+
+#[allow(unused_variables)]
+pub trait Handler {
+    fn setup(sketch: &mut Sketch) -> Self;
+    fn quit(&mut self) {}
+
+    fn draw(&mut self, sketch: &mut Sketch, gfx: &mut Graphics);
+
+    fn key_pressed(&mut self, sketch: &mut Sketch, key: Key) {}
+    fn key_released(&mut self, sketch: &mut Sketch, key: Key) {}
+
+    fn mouse_moved(&mut self, sketch: &mut Sketch, position: Point) {}
+    fn mouse_pressed(&mut self, sketch: &mut Sketch, button: MouseButton) {}
+    fn mouse_released(&mut self, sketch: &mut Sketch, button: MouseButton) {}
+}
+
+pub struct Settings<'a> {
+    pub title: Option<&'a str>,
+    pub size: Size,
+    pub decorations: bool,
+    pub framerate: Option<u32>,
+    pub exit_key: Option<Key>,
+}
+
+impl<'a> Default for Settings<'a> {
+    fn default() -> Self {
+        Self {
+            title: None,
+            size: Size::new(800.0, 600.0),
+            decorations: true,
+            framerate: None,
+            exit_key: None,
+        }
+    }
+}
 
 pub struct Sketch {
     pub(super) window: Window,

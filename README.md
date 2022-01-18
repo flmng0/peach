@@ -9,73 +9,47 @@ See the [examples](examples/) folder for more code snippets, as well as (eventua
 ```rust
 use peach::prelude::*;
 
-fn main() {
-    // Settings for the window, see the inline documentation for
-    // more information.
-    let settings = Settings {
-        title: Some("Example Sketch"),
-        size: [512.0, 512.0].into(),
-        framerate: None,
-        exit_key: Some(Key::Escape),
-        ..Default::default()
-    };
+type Model = ();
 
-    // Run a given sketch, provided a structure type
-    // implementing `Handler`.
-    peach::run::<Example>(settings).unwrap();
+#[peach::main]
+fn main(sketch: &mut Sketch) (Drawer, ()) {
+    sketch.set_title("Example Sketch");
+    sketch.set_size(512.0, 512.0);
+    sketch.set_exit_key(Some(Key::Escape));
+
+    return (draw, ())
 }
 
-#[derive(Default)]
-struct Example;
+fn draw(sketch: &mut Sketch, model: &mut Model) -> Graphics {
+    let gfx = sketch.new_graphics();
+    // Maybe Graphics::new(&sketch)??
 
-// Event handler, such as draw, mouse moved, mouse pressed,
-// key released, etc.
-impl Handler for Example {
-    fn setup(sketch: &mut Sketch) -> Self {
-        sketch.set_clear_color(Color::new(1.0, 1.0, 1.0, 1.0));
-        Self::default()
-    }
+    gfx.fill(0xFFFF4488);
+    gfx.stroke(consts::BLACK); // same as 0xFF000000.
 
-    fn draw(&mut self, sketch: &mut Sketch, gfx: &mut Graphics) {
-        let t = sketch.get_time_since_start().as_secs_scalar();
-        let x = 1.5 * t.cos();
-        let y = (2.0 * t).sin();
+    gfx.stroke_weight(2.0);
+    gfx.square(sketch.mouse(), 20.0);
 
-        let size = Point::from(sketch.get_size().to_tuple());
+    let t = sketch.secs_since_start();
+    let x = 1.5 * t.cos();
+    let y = (2.0 * t).sin();
 
-        // Set the fill color for all 'top-level' objects.
-        gfx.fill(Color {
-            r: 1.0,
-            g: 0.33,
-            b: 0.66,
-            a: 1.0,
-        });
+    gfx.scoped(|gfx| {
+        let center = sketch.center();
+        let pos = center + Vector::new(x, y) * 100.0;
 
-        // Draw an initial square at the cursor position.
-        gfx.stroke(colors::BLACK);
-        gfx.stroke_weight(2.0);
-        gfx.square(sketch.get_mouse_position(), 20.0);
+        gfx.stroke(consts::BLUE);
+        gfx.align(Align::Center);
+        gfx.rotate(x * PI);
+        gfx.translate(pos);
+        gfx.square(Vector::zero(), 10.0 + 20.0 * x.abs());
+    });
 
-        // A `scoped` block, similar to a push-pop block in
-        // Processing.
-        //
-        // Can be infinitely nested.
-        gfx.scoped(|gfx| {
-            let center = sketch.get_center();
-            let pos = center.to_vector() + Vector::new(x, y) * 100.0;
+    // Note that this will also have a black border, because the stroke set
+    // inside of `scoped` is scoped to that closure.
+    let bottom_right = sketch.corner_br();
+    gfx.square(bottom_right - sketch.mouse(), 20.0);
 
-            gfx.stroke(colors::BLUE);
-            gfx.anchor_mode(AnchorMode::Center);
-            gfx.rotate(Angle::radians(x * PI));
-            gfx.translate(pos);
-            gfx.square(Point::zero(), 10.0 + 20.0 * x.abs());
-        });
-
-        gfx.fill(colors::BLUE);
-
-        // Stroke will still be black, because scoped blocks have no
-        // effect outside of their scope.
-        gfx.square(size - sketch.get_mouse_position().to_vector(), 20.0);
-    }
+    gfx
 }
 ```

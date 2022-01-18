@@ -12,19 +12,21 @@ readme = "README.md"
 
 keywords = ["processing", "sandbox", "drawing"]
 
+resolver="2"
+
 [features]
 default = []
 
 force_f32 = []
 
 [dependencies]
-anyhow = "1.0.40"
-bytemuck = "1.5.1"
-euclid = "0.22.1"
-lyon_tessellation = "0.16.2"
+anyhow = "1.0.52"
+bytemuck = "1.7.3"
+euclid = "0.22.6"
+lyon_tessellation = "0.17.10"
 pollster = "0.2.4"
-rgb = "0.8.27"
-thiserror = "1.0.24"
-wgpu = "0.8.0"
+rgb = "0.8.31"
+thiserror = "1.0.30"
+wgpu = "0.12.0"
 wgpu-subscriber = "0.1.0"
-winit = "0.24.0"
+winit = "0.26.1"

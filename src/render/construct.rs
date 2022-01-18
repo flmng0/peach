@@ -81,11 +81,8 @@ impl tess::GeometryBuilder for RawBuffersBuilder {
 }
 
 impl tess::FillGeometryBuilder for RawBuffersBuilder {
-    fn add_fill_vertex(
-        &mut self,
-        position: tess::math::Point,
-        _attributes: tess::FillAttributes,
-    ) -> GeometryBuilderResult {
+    fn add_fill_vertex(&mut self, vertex: tess::FillVertex) -> GeometryBuilderResult {
+        let position = vertex.position();
         if let Some(color) = self.context.fill {
             self.add_vertex(position.cast(), color)
         }
@@ -96,11 +93,8 @@ impl tess::FillGeometryBuilder for RawBuffersBuilder {
 }
 
 impl tess::StrokeGeometryBuilder for RawBuffersBuilder {
-    fn add_stroke_vertex(
-        &mut self,
-        position: tess::math::Point,
-        _attributes: tess::StrokeAttributes,
-    ) -> GeometryBuilderResult {
+    fn add_stroke_vertex(&mut self, vertex: tess::StrokeVertex) -> GeometryBuilderResult {
+        let position = vertex.position();
         if let Some(color) = self.context.stroke {
             self.add_vertex(position.cast(), color)
         }

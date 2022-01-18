@@ -133,14 +133,7 @@ impl Renderer {
             }],
         });
 
-        let shader = device.create_shader_module(&wgpu::ShaderModuleDescriptor {
-            label: None,
-            source: wgpu::ShaderSource::Wgsl(std::borrow::Cow::Borrowed(include_str!(
-                "shader.wgsl"
-            ))),
-        });
-
-        let sc_format = wgpu::TextureFormat::Bgra8UnormSrgb;
+        let shader = device.create_shader_module(&wgpu::include_wgsl!("shader.wgsl"));
 
         let render_pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
@@ -168,23 +161,12 @@ impl Renderer {
             fragment: Some(wgpu::FragmentState {
                 module: &shader,
                 entry_point: "fs_main",
-                targets: &[sc_format.into()],
+                targets: &[config.format.into()],
             }),
             primitive: wgpu::PrimitiveState::default(),
             multisample: wgpu::MultisampleState::default(),
             depth_stencil: None,
         });
-
-        // let sc_desc = wgpu::SwapChainDescriptor {
-        //     usage: wgpu::TextureUsage::RENDER_ATTACHMENT,
-        //     format: sc_format,
-        //     width,
-        //     height,
-        //     present_mode: wgpu::PresentMode::Fifo,
-        // };
-
-        // let swap_chain = device.create_swap_chain(&surface,
-        // &sc_desc);
 
         Ok(Self {
             surface,
@@ -198,14 +180,16 @@ impl Renderer {
     }
 
     pub fn resize(&mut self, size: PhysicalSize<u32>) {
-        self.config.width = size.width;
-        self.config.height = size.height;
+        if size.width > 0 && size.height > 0 {
+            self.config.width = size.width;
+            self.config.height = size.height;
 
-        let uniforms = Uniforms::generate(size.width, size.height);
-        self.queue
-            .write_buffer(&self.uniforms_buf, 0, &bytemuck::bytes_of(&uniforms));
+            let uniforms = Uniforms::generate(size.width, size.height);
+            self.queue
+                .write_buffer(&self.uniforms_buf, 0, &bytemuck::bytes_of(&uniforms));
 
-        self.surface.configure(&self.device, &self.config);
+            self.surface.configure(&self.device, &self.config);
+        }
     }
 
     pub fn render(&mut self, gfx: Graphics) -> Result<(), RenderError> {
@@ -277,6 +261,7 @@ impl Renderer {
         }
 
         self.queue.submit(std::iter::once(encoder.finish()));
+        output.present();
 
         Ok(())
     }

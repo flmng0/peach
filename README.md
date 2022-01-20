@@ -9,19 +9,17 @@ See the [examples](examples/) folder for more code snippets, as well as (eventua
 ```rust
 use peach::prelude::*;
 
-type Model = ();
+fn main() -> SketchResult {
+    let mut sketch = Sketch::builder("Example Sketch")
+        .size(512.0, 512.0)
+        .exit_key(Key::Escape)
+        .build()?;
 
-#[peach::main]
-fn main(sketch: &mut Sketch) (Drawer, ()) {
-    sketch.set_title("Example Sketch");
-    sketch.set_size(512.0, 512.0);
-    sketch.set_exit_key(Some(Key::Escape));
-
-    return (draw, ())
+    sketch.run(draw);
 }
 
-fn draw(sketch: &mut Sketch, model: &mut Model) -> Graphics {
-    let gfx = sketch.new_graphics();
+fn draw(sketch: &mut Sketch) -> Graphics {
+    let mut gfx = sketch.new_graphics();
     // Maybe Graphics::new(&sketch)??
 
     gfx.fill(0xFFFF4488);
@@ -51,5 +49,36 @@ fn draw(sketch: &mut Sketch, model: &mut Model) -> Graphics {
     gfx.square(bottom_right - sketch.mouse(), 20.0);
 
     gfx
+}
+```
+
+## Optional Model in Draw Method
+
+```rust
+use peach::prelude::*;
+
+fn main() -> SketchResult {
+    let mut sketch = Sketch::builder("Model example")
+        .build()?;
+
+    sketch.run(draw);
+}
+
+struct Model {
+    x: f64,
+}
+
+impl FromSketch for Model {
+    fn from_sketch(sketch: &Sketch) -> Self {
+        Self {
+            x: sketch.size().width / 2.0,
+        }
+    }
+}
+
+fn draw(sketch: &mut Sketch, model: &mut Model) -> Graphics {
+    // ...
+    // use and/or modify model within the sketch ...
+    // ...
 }
 ```

@@ -18,7 +18,9 @@ fn main() -> SketchResult {
     sketch.run(draw);
 }
 
-fn draw(sketch: &mut Sketch) -> Graphics {
+type Model = ();
+
+fn draw(sketch: &mut Sketch, model: &mut Model) -> Graphics {
     let mut gfx = sketch.new_graphics();
     // Maybe Graphics::new(&sketch)??
 
@@ -49,36 +51,5 @@ fn draw(sketch: &mut Sketch) -> Graphics {
     gfx.square(bottom_right - sketch.mouse(), 20.0);
 
     gfx
-}
-```
-
-## Optional Model in Draw Method
-
-```rust
-use peach::prelude::*;
-
-fn main() -> SketchResult {
-    let mut sketch = Sketch::builder("Model example")
-        .build()?;
-
-    sketch.run(draw);
-}
-
-struct Model {
-    x: f64,
-}
-
-impl FromSketch for Model {
-    fn from_sketch(sketch: &Sketch) -> Self {
-        Self {
-            x: sketch.size().width / 2.0,
-        }
-    }
-}
-
-fn draw(sketch: &mut Sketch, model: &mut Model) -> Graphics {
-    // ...
-    // use and/or modify model within the sketch ...
-    // ...
 }
 ```

@@ -11,7 +11,7 @@ use peach::prelude::*;
 
 fn main() -> SketchResult {
     let mut sketch = Sketch::builder("Example Sketch")
-        .size(512.0, 512.0)
+        .size(512, 512)
         .exit_key(Key::Escape)
         .build()?;
 

@@ -20,12 +20,7 @@ impl RawBuffersBuilder {
     fn add_vertex(&mut self, position: Point, color: Color) -> GeometryBuilderResult {
         use rgb::ComponentMap;
 
-        let position: [GpuScalar; 2] = self
-            .context
-            .transform
-            .transform_point(position)
-            .cast()
-            .into();
+        let position: [GpuScalar; 2] = self.context.transform.transform_point(position).cast().into();
         let color: [GpuScalar; 4] = color.map(|p| p as GpuScalar).into();
 
         self.vertices.push(RawVertex { position, color });

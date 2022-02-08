@@ -1,206 +1,268 @@
-use std::collections::HashMap;
+use std::collections::HashSet;
 use std::time::{Duration, Instant};
 
-use winit::dpi::LogicalSize;
-use winit::event::{ElementState, KeyboardInput, WindowEvent};
-use winit::window::Window;
+use wgpu::SurfaceError;
+use winit::dpi::{LogicalSize, PhysicalSize, Size as WindowSize};
+use winit::event::{ElementState, Event, KeyboardInput, ModifiersState, WindowEvent};
+use winit::event_loop::{ControlFlow, EventLoop};
+use winit::window::{Fullscreen, Window, WindowBuilder};
 
-use crate::render::{Graphics, Renderer};
-use crate::types::{Color, Fullscreen, Key, Modifiers, MouseButton, Point, Scalar, Size};
+use crate::render::{Graphics, RenderError, Renderer};
+use crate::types::{Color, Key, MouseButton, Point, Scalar, Size};
 
-#[allow(unused_variables)]
-pub trait Handler {
-    fn setup(sketch: &mut Sketch) -> Self;
-    fn quit(&mut self) {}
-
-    fn draw(&mut self, sketch: &mut Sketch, gfx: &mut Graphics);
-
-    fn key_pressed(&mut self, sketch: &mut Sketch, key: Key) {}
-    fn key_released(&mut self, sketch: &mut Sketch, key: Key) {}
-
-    fn mouse_moved(&mut self, sketch: &mut Sketch, position: Point) {}
-    fn mouse_pressed(&mut self, sketch: &mut Sketch, button: MouseButton) {}
-    fn mouse_released(&mut self, sketch: &mut Sketch, button: MouseButton) {}
+pub trait FromSketch {
+    fn from_sketch(sketch: &Sketch) -> Self;
 }
 
-pub struct Settings<'a> {
-    pub title: Option<&'a str>,
-    pub size: Size,
-    pub decorations: bool,
-    pub framerate: Option<u32>,
-    pub exit_key: Option<Key>,
+impl FromSketch for () {
+    fn from_sketch(_sketch: &Sketch) -> Self {
+        ()
+    }
 }
 
-impl<'a> Default for Settings<'a> {
-    fn default() -> Self {
+struct Attributes {
+    title: &'static str,
+    size: WindowSize,
+    fullscreen: bool,
+    exit_key: Option<Key>,
+    clear_color: Option<Color>,
+}
+
+impl Attributes {
+    const fn new(title: &'static str) -> Self {
         Self {
-            title: None,
-            size: Size::new(800.0, 600.0),
-            decorations: true,
-            framerate: None,
+            title,
+            size: WindowSize::Logical(LogicalSize::new(640.0, 480.0)),
+            fullscreen: false,
             exit_key: None,
+            clear_color: None,
         }
     }
 }
 
 pub struct Sketch {
-    pub(super) window: Window,
-    pub(super) renderer: Renderer,
-    pub(super) clear_color: Option<Color>,
-    modifiers: Modifiers,
-    running: bool,
-    pub(super) framerate: Option<u32>,
-    pub(super) framerate_dirty: bool,
-    start_instant: Instant,
-    exit_key: Option<Key>,
-    mouse_position: Point,
-    mouse_buttons: HashMap<MouseButton, bool>,
-    keys: HashMap<Key, bool>,
+    attr: Attributes,
+    scale_factor: f64,
+    start: Instant,
+    input_state: InputState,
 }
 
 impl Sketch {
-    pub(super) fn new(window: Window, settings: Settings) -> Self {
-        let renderer = pollster::block_on(Renderer::new(&window)).unwrap();
+    pub fn builder(title: &'static str) -> SketchBuilder {
+        SketchBuilder::new(title)
+    }
 
+    pub fn run<Drawer, Model>(mut self, mut draw: Drawer) -> !
+    where
+        Drawer: 'static + FnMut(&mut Sketch, &mut Model) -> Graphics,
+        Model: 'static + FromSketch,
+    {
+        let event_loop = EventLoop::new();
+        let window = Self::init_window(&event_loop, &self.attr);
+
+        let now = Instant::now();
+        self.start = now;
+        self.scale_factor = window.scale_factor();
+
+        let mut renderer = pollster::block_on(Renderer::new(&window)).unwrap();
+
+        let mut model = Model::from_sketch(&self);
+
+        let mut last_draw = now;
+        // TODO: Currently assumes 60FPS.
+        let frame_delay = Duration::new(1, 0) / 60;
+
+        event_loop.run(move |event, _, control_flow| {
+            // keep
+            match event {
+                Event::MainEventsCleared => {
+                    let delta = last_draw.elapsed();
+                    let draw = delta >= frame_delay;
+
+                    if draw {
+                        window.request_redraw();
+                    }
+                },
+                Event::RedrawRequested(..) => {
+                    let gfx = draw(&mut self, &mut model);
+
+                    if let Err(e) = renderer.render(gfx) {
+                        match e {
+                            RenderError::SurfaceTexture(e) => {
+                                match e {
+                                    SurfaceError::Lost => {
+                                        renderer.resize(
+                                            self.attr.size.to_physical(window.scale_factor()),
+                                        )
+                                    },
+                                    SurfaceError::OutOfMemory => {
+                                        eprintln!("Peach: GPU out of memory");
+                                        *control_flow = ControlFlow::Exit;
+                                    },
+                                    e => eprintln!("{:?}", e),
+                                }
+                            },
+                            e => {
+                                eprintln!("{:?}", e);
+                                *control_flow = ControlFlow::Exit;
+                            },
+                        }
+                    }
+
+                    last_draw = Instant::now();
+                },
+                Event::WindowEvent { event, .. } => {
+                    if !self.input_state.handle_event(&event) {
+                        match event {
+                            WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
+                            _ => {},
+                        }
+                    }
+
+                    if let Some(exit_key) = self.attr.exit_key {
+                        if self.input_state.keys.contains(&exit_key) {
+                            *control_flow = ControlFlow::Exit;
+                        }
+                    }
+                },
+                _ => {},
+            }
+        })
+    }
+
+    pub fn secs_since_start(&self) -> f64 {
+        self.start.elapsed().as_secs_f64()
+    }
+
+    pub fn corner_br(&self) -> Point {
+        self.size().to_vector().to_point()
+    }
+
+    pub fn mouse(&self) -> Point {
+        self.input_state.mouse_position
+    }
+
+    pub fn size(&self) -> Size {
+        let physical: PhysicalSize<u32> = self.attr.size.to_physical(self.scale_factor);
+
+        Size::new(physical.width as Scalar, physical.height as Scalar)
+    }
+
+    pub fn center(&self) -> Point {
+        (self.size().to_vector() / 2.0).to_point()
+    }
+
+    pub fn new_graphics(&self) -> Graphics {
+        Graphics::new(self.attr.clear_color)
+    }
+
+    // Eventually return Result<Window, SketchInitError>
+    fn init_window(event_loop: &EventLoop<()>, attr: &Attributes) -> Window {
+        let fullscreen = attr.fullscreen.then(|| Fullscreen::Borderless(None));
+
+        WindowBuilder::new()
+            .with_title(attr.title)
+            .with_inner_size(attr.size)
+            .with_fullscreen(fullscreen)
+            .build(event_loop)
+            .unwrap() // TODO: Handle error
+    }
+
+    fn from_builder(builder: SketchBuilder) -> Self {
         Self {
-            window,
-            renderer,
-            clear_color: None,
-            modifiers: Modifiers::default(),
-            running: true,
-            framerate: settings.framerate,
-            framerate_dirty: true,
-            start_instant: Instant::now(),
-            exit_key: settings.exit_key,
-            mouse_position: Point::zero(),
-            mouse_buttons: HashMap::new(),
-            keys: HashMap::new(),
+            attr: builder.attr,
+            input_state: InputState::default(),
+            scale_factor: 1.0,
+            start: Instant::now(),
+        }
+    }
+}
+
+pub struct SketchBuilder {
+    attr: Attributes,
+}
+
+impl SketchBuilder {
+    pub const fn new(title: &'static str) -> Self {
+        Self {
+            attr: Attributes::new(title),
         }
     }
 
-    pub(super) fn handle_event<H: Handler>(&mut self, handler: &mut H, event: WindowEvent) {
+    pub fn size(mut self, width: f64, height: f64) -> Self {
+        self.attr.size = WindowSize::Logical(LogicalSize::new(width, height));
+        self
+    }
+
+    pub fn physical_size(mut self, width: u32, height: u32) -> Self {
+        self.attr.size = WindowSize::Physical(PhysicalSize::new(width, height));
+        self
+    }
+
+    pub fn fullscreen(mut self) -> Self {
+        self.attr.fullscreen = true;
+        self
+    }
+
+    pub fn exit_key(mut self, key: Key) -> Self {
+        self.attr.exit_key = Some(key);
+        self
+    }
+
+    // Eventually return Result<Sketch, SketchInitError>
+    pub fn build(self) -> Sketch {
+        Sketch::from_builder(self)
+    }
+}
+
+#[derive(Default, Debug, Clone)]
+pub struct InputState {
+    keys: HashSet<Key>,
+    modifiers: ModifiersState,
+    buttons: HashSet<MouseButton>,
+    mouse_position: Point,
+}
+
+impl InputState {
+    // Returns whether the event was handled.
+    fn handle_event(&mut self, event: &WindowEvent) -> bool {
         match event {
-            WindowEvent::CloseRequested => {
-                self.running = false;
-            },
-            WindowEvent::ModifiersChanged(modifiers) => self.modifiers = modifiers,
             WindowEvent::KeyboardInput {
                 input:
                     KeyboardInput {
-                        virtual_keycode: Some(key),
                         state,
+                        virtual_keycode: Some(key),
                         ..
                     },
                 ..
             } => {
-                if let Some(exit_key) = self.exit_key {
-                    if exit_key == key {
-                        self.running = false;
-                    }
-                }
-
-                self.keys.insert(key, state == ElementState::Pressed);
-
                 match state {
-                    ElementState::Pressed => handler.key_pressed(self, key),
-                    ElementState::Released => handler.key_released(self, key),
-                }
-            },
-            WindowEvent::CursorMoved { position, .. } => {
-                self.mouse_position = Point::new(position.x as Scalar, position.y as Scalar);
+                    ElementState::Pressed => self.keys.insert(*key),
+                    ElementState::Released => self.keys.remove(key),
+                };
 
-                handler.mouse_moved(self, self.mouse_position);
+                true
             },
             WindowEvent::MouseInput { button, state, .. } => {
-                self.mouse_buttons
-                    .insert(button, state == ElementState::Pressed);
-
                 match state {
-                    ElementState::Pressed => handler.mouse_pressed(self, button),
-                    ElementState::Released => handler.mouse_released(self, button),
-                }
-            },
-            WindowEvent::Resized(size) => {
-                self.renderer.resize(size);
+                    ElementState::Pressed => self.buttons.insert(*button),
+                    ElementState::Released => self.buttons.remove(button),
+                };
 
-                // let logical =
-                // size.to_logical(self.window.
-                // scale_factor());
-                // self.size.width = logical.width;
-                // self.size.height = logical.height;
+                true
             },
-            _ => {},
+            WindowEvent::CursorMoved { position, .. } => {
+                self.mouse_position.x = position.x;
+                self.mouse_position.y = position.y;
+
+                true
+            },
+            WindowEvent::ModifiersChanged(modifiers) => {
+                self.modifiers = *modifiers;
+
+                true
+            },
+            _ => false,
         }
-    }
-
-    pub(super) fn has_stopped(&self) -> bool {
-        !self.running
-    }
-
-    pub fn get_time_since_start(&self) -> Duration {
-        self.start_instant.elapsed()
-    }
-
-    pub fn get_key(&self, key: Key) -> bool {
-        *self.keys.get(&key).unwrap_or(&false)
-    }
-
-    pub fn get_mouse_button(&self, button: MouseButton) -> bool {
-        *self.mouse_buttons.get(&button).unwrap_or(&false)
-    }
-
-    pub fn get_mouse_position(&self) -> Point {
-        self.mouse_position
-    }
-
-    pub fn get_modifiers(&self) -> Modifiers {
-        self.modifiers
-    }
-
-    pub fn get_center(&self) -> Point {
-        let size = self.get_size();
-        Point::new(size.width / 2.0, size.height / 2.0)
-    }
-
-    pub fn get_size(&self) -> Size {
-        let physical_size = self.window.inner_size();
-        // let scale_factor = self.window.scale_factor();
-        // let logical_size =
-        // physical_size.to_logical(scale_factor);
-
-        // Size::new(logical_size.width, logical_size.height)
-        Size::new(
-            physical_size.width as Scalar,
-            physical_size.height as Scalar,
-        )
-    }
-
-    pub fn get_clear_color(&self) -> Option<Color> {
-        self.clear_color
-    }
-
-    pub fn set_clear_color<C>(&mut self, color: C)
-    where
-        C: Into<Color>,
-    {
-        self.clear_color = Some(color.into());
-    }
-
-    pub fn no_clear_color<C>(&mut self) {
-        self.clear_color = None;
-    }
-
-    pub fn set_size(&mut self, new_size: Size) {
-        let logical_size = LogicalSize::new(new_size.width, new_size.height);
-        self.window.set_inner_size(logical_size);
-    }
-
-    pub fn set_framerate(&mut self, framerate: Option<u32>) {
-        self.framerate_dirty = true;
-        self.framerate = framerate;
-    }
-
-    pub fn set_fullscreen(&mut self, fullscreen: Option<Fullscreen>) {
-        self.window.set_fullscreen(fullscreen);
     }
 }

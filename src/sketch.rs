@@ -2,13 +2,14 @@ use std::collections::HashSet;
 use std::time::{Duration, Instant};
 
 use wgpu::SurfaceError;
-use winit::dpi::{LogicalSize, PhysicalSize, Size as WindowSize};
+use winit::dpi::{LogicalSize, PhysicalSize, Size};
 use winit::event::{ElementState, Event, KeyboardInput, ModifiersState, WindowEvent};
 use winit::event_loop::{ControlFlow, EventLoop};
 use winit::window::{Fullscreen, Window, WindowBuilder};
 
+use crate::prelude::Vector;
 use crate::render::{Graphics, RenderError, Renderer};
-use crate::types::{Color, Key, MouseButton, Point, Scalar, Size};
+use crate::types::{Color, Key, MouseButton};
 
 pub trait FromSketch {
     fn from_sketch(sketch: &Sketch) -> Self;
@@ -22,7 +23,7 @@ impl FromSketch for () {
 
 struct Attributes {
     title: &'static str,
-    size: WindowSize,
+    size: Size,
     fullscreen: bool,
     exit_key: Option<Key>,
     clear_color: Option<Color>,
@@ -32,7 +33,7 @@ impl Attributes {
     const fn new(title: &'static str) -> Self {
         Self {
             title,
-            size: WindowSize::Logical(LogicalSize::new(640.0, 480.0)),
+            size: Size::Logical(LogicalSize::new(640.0, 480.0)),
             fullscreen: false,
             exit_key: None,
             clear_color: None,
@@ -65,6 +66,8 @@ impl Sketch {
         self.scale_factor = window.scale_factor();
 
         let mut renderer = pollster::block_on(Renderer::new(&window)).unwrap();
+
+        window.set_visible(true);
 
         let mut model = Model::from_sketch(&self);
 
@@ -134,22 +137,22 @@ impl Sketch {
         self.start.elapsed().as_secs_f64()
     }
 
-    pub fn corner_br(&self) -> Point {
-        self.size().to_vector().to_point()
+    pub fn corner_br(&self) -> Vector {
+        self.size()
     }
 
-    pub fn mouse(&self) -> Point {
+    pub fn mouse(&self) -> Vector {
         self.input_state.mouse_position
     }
 
-    pub fn size(&self) -> Size {
+    pub fn size(&self) -> Vector {
         let physical: PhysicalSize<u32> = self.attr.size.to_physical(self.scale_factor);
 
-        Size::new(physical.width as Scalar, physical.height as Scalar)
+        Vector::new(physical.width as _, physical.height as _)
     }
 
-    pub fn center(&self) -> Point {
-        (self.size().to_vector() / 2.0).to_point()
+    pub fn center(&self) -> Vector {
+        self.size() / 2.0
     }
 
     pub fn new_graphics(&self) -> Graphics {
@@ -164,6 +167,7 @@ impl Sketch {
             .with_title(attr.title)
             .with_inner_size(attr.size)
             .with_fullscreen(fullscreen)
+            .with_visible(false)
             .build(event_loop)
             .unwrap() // TODO: Handle error
     }
@@ -190,12 +194,17 @@ impl SketchBuilder {
     }
 
     pub fn size(mut self, width: f64, height: f64) -> Self {
-        self.attr.size = WindowSize::Logical(LogicalSize::new(width, height));
+        self.attr.size = Size::Logical(LogicalSize::new(width, height));
         self
     }
 
     pub fn physical_size(mut self, width: u32, height: u32) -> Self {
-        self.attr.size = WindowSize::Physical(PhysicalSize::new(width, height));
+        self.attr.size = Size::Physical(PhysicalSize::new(width, height));
+        self
+    }
+
+    pub fn clear_color(mut self, color: Color) -> Self {
+        self.attr.clear_color = Some(color);
         self
     }
 
@@ -220,7 +229,7 @@ pub struct InputState {
     keys: HashSet<Key>,
     modifiers: ModifiersState,
     buttons: HashSet<MouseButton>,
-    mouse_position: Point,
+    mouse_position: Vector,
 }
 
 impl InputState {

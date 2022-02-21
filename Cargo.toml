@@ -23,6 +23,7 @@ force_f32 = []
 anyhow = "1.0.52"
 bytemuck = "1.7.3"
 euclid = "0.22.6"
+glam = "0.20.2"
 lyon_tessellation = "0.17.10"
 pollster = "0.2.4"
 rgb = "0.8.31"

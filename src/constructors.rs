@@ -10,10 +10,10 @@ pub const fn rgba(r: Scalar, g: Scalar, b: Scalar, a: Scalar) -> Color {
 
 pub fn hex_bytes(hex: u32) -> [u8; 4] {
     [
-        ((hex & 0xFF000000) >> 24) as u8,
         ((hex & 0x00FF0000) >> 16) as u8,
         ((hex & 0x0000FF00) >> 8) as u8,
         (hex & 0x000000FF) as u8,
+        ((hex & 0xFF000000) >> 24) as u8,
     ]
 }
 

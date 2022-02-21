@@ -1,14 +1,15 @@
 use anyhow::Result;
 
 use super::construct::RawBuffersBuilder;
-use super::context::{AnchorMode, Context};
+use super::context::{AnchorMode, AngleMode, Context};
+use crate::consts::PI;
 use crate::tess;
 use crate::tess::path::iterator::FromPolyline;
 use crate::types::*;
 
 #[derive(Clone)]
 enum DrawCommand {
-    Draw(bool, Vec<Point>),
+    Draw(bool, Vec<Vector>),
     UpdateContext(Context),
 }
 
@@ -68,7 +69,7 @@ impl Graphics {
         }
     }
 
-    fn align_points(&self, points: &[Point], bounds: Option<BoundingBox>) -> Vec<Point> {
+    fn align_points(&self, points: &[Vector], bounds: Option<BoundingBox>) -> Vec<Vector> {
         match self.context().anchor_mode {
             AnchorMode::First => points.to_vec(),
             AnchorMode::Center => {
@@ -82,13 +83,20 @@ impl Graphics {
         }
     }
 
-    fn draw(&mut self, points: &[Point], closed: bool, bounds: Option<BoundingBox>) {
+    fn draw(&mut self, points: &[Vector], closed: bool, bounds: Option<BoundingBox>) {
         self.update_context_if_dirty();
 
         let points = self.align_points(points, bounds);
 
         let command = DrawCommand::Draw(closed, points);
         self.draw_commands.push(command);
+    }
+
+    fn radians_of(&self, angle: Scalar) -> Scalar {
+        match self.context().angle_mode {
+            AngleMode::Degrees => angle * (PI / 180.0),
+            AngleMode::Radians => angle,
+        }
     }
 
     pub fn scoped<C>(&mut self, mut cb: C)
@@ -134,44 +142,48 @@ impl Graphics {
         self.context_mut().anchor_mode = mode;
     }
 
-    pub fn rotate(&mut self, angle: Angle) {
-        *self.transform_mut() = self.transform().then_rotate(angle);
+    pub fn angle_mode(&mut self, mode: AngleMode) {
+        self.context_mut().angle_mode = mode;
+    }
+
+    pub fn rotate(&mut self, angle: Scalar) {
+        *self.transform_mut() = Transform::from_angle(self.radians_of(angle)) * *self.transform();
     }
 
     pub fn translate<V>(&mut self, by: V)
     where
         V: Into<Vector>,
     {
-        *self.transform_mut() = self.transform().then_translate(by.into());
+        *self.transform_mut() = Transform::from_translation(by.into()) * *self.transform();
     }
 
-    pub fn rect<P, S>(&mut self, position: P, size: S)
+    pub fn rect<VA, VB>(&mut self, position: VA, size: VB)
     where
-        P: Into<Point>,
-        S: Into<Size>,
+        VA: Into<Vector>,
+        VB: Into<Vector>,
     {
         let position = position.into();
         let size = size.into();
         self.draw(
             &[
-                position + Vector::zero(),
-                position + Vector::new(size.width, 0.0),
-                position + Vector::new(size.width, size.height),
-                position + Vector::new(0.0, size.height),
+                position + Vector::ZERO,
+                position + Vector::new(size.x, 0.0),
+                position + Vector::new(size.x, size.y),
+                position + Vector::new(0.0, size.y),
             ],
             true,
             Some(BoundingBox {
                 min: position,
-                max: position + size.to_vector(),
+                max: position + size,
             }),
         );
     }
 
-    pub fn square<P>(&mut self, position: P, size: Scalar)
+    pub fn square<V>(&mut self, position: V, size: Scalar)
     where
-        P: Into<Point>,
+        V: Into<Vector>,
     {
-        self.rect(position, Size::new(size, size));
+        self.rect(position, Vector::new(size, size));
     }
 
     pub(crate) fn construct_buffer_data(self) -> Result<BufferData, tess::TessellationError> {
@@ -185,7 +197,7 @@ impl Graphics {
         for command in self.draw_commands.iter() {
             match command {
                 DrawCommand::Draw(closed, points) => {
-                    let points = points.iter().map(|p| p.cast::<f32>());
+                    let points = points.iter().map(|p| tess::math::point(p.x as _, p.y as _));
 
                     if current_context.fill.is_some() {
                         fill_tess.tessellate(

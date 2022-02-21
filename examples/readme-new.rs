@@ -23,7 +23,7 @@ fn draw(sketch: &mut Sketch, _model: &mut Model) -> Graphics {
 
     let t = sketch.secs_since_start();
     let x = 1.5 * t.cos();
-    let y = (2.0f64 * t).sin();
+    let y = (2.0 * t).sin();
 
     gfx.scoped(|gfx| {
         let center = sketch.center();
@@ -31,16 +31,18 @@ fn draw(sketch: &mut Sketch, _model: &mut Model) -> Graphics {
 
         gfx.stroke(colors::BLUE);
         gfx.anchor_mode(AnchorMode::Center);
-        gfx.rotate(Angle::radians(x * PI));
-        gfx.translate(pos.to_vector());
-        gfx.square(Point::zero(), 10.0 + 20.0 * x.abs());
+        gfx.rotate(x * PI);
+        gfx.translate(pos);
+        gfx.square(Vector::ZERO, 10.0 + 20.0 * x.abs());
     });
+
+    gfx.fill(hex(0xff282a36));
 
     // Note that this will also have a black border, because the
     // stroke set inside of `scoped` is scoped to that
     // closure.
     let bottom_right = sketch.corner_br();
-    gfx.square(bottom_right - sketch.mouse().to_vector(), 20.0);
+    gfx.square(bottom_right - sketch.mouse(), 20.0);
 
     gfx
 }

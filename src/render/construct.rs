@@ -2,7 +2,8 @@
 
 use super::context::Context;
 use crate::tess;
-use crate::types::{Color, GpuScalar, Index, Point, RawVertex};
+use crate::tess::math::Point;
+use crate::types::{Color, GpuScalar, Index, RawVertex, Vector};
 
 type GeometryBuilderResult = Result<tess::VertexId, tess::GeometryBuilderError>;
 
@@ -20,7 +21,9 @@ impl RawBuffersBuilder {
     fn add_vertex(&mut self, position: Point, color: Color) -> GeometryBuilderResult {
         use rgb::ComponentMap;
 
-        let position: [GpuScalar; 2] = self.context.transform.transform_point(position).cast().into();
+        let position = Vector::new(position.x as _, position.y as _);
+        let transform = self.context.transform;
+        let position: [GpuScalar; 2] = transform.transform_point2(position).as_vec2().into();
         let color: [GpuScalar; 4] = color.map(|p| p as GpuScalar).into();
 
         self.vertices.push(RawVertex { position, color });

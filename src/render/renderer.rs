@@ -5,7 +5,7 @@ use winit::window::Window;
 
 use super::graphics::{BufferData, Graphics};
 use crate::tess;
-use crate::types::{GpuScalar, RawVertex, Scalar, Transform, Vector};
+use crate::types::{GpuScalar, RawVertex};
 
 #[derive(Error, Debug)]
 pub enum RendererInitError {
@@ -24,7 +24,7 @@ pub enum RenderError {
 }
 
 #[repr(C)]
-#[derive(Copy, Clone)]
+#[derive(Clone, Copy)]
 struct Uniforms {
     normalize: [GpuScalar; 16],
 }
@@ -34,14 +34,14 @@ unsafe impl bytemuck::Zeroable for Uniforms {}
 
 impl Uniforms {
     fn generate(width: u32, height: u32) -> Self {
-        let width = width as Scalar;
-        let height = height as Scalar;
+        let width = width as GpuScalar;
+        let height = height as GpuScalar;
 
-        let transform =
-            Transform::scale(2.0 / width, -2.0 / height).then_translate(Vector::new(-1.0, 1.0));
+        let transform = glam::Mat4::from_translation(glam::vec3(-1.0, 1.0, 0.0))
+            * glam::Mat4::from_scale(glam::vec3(2.0 / width, -2.0 / height, 1.0));
 
         Self {
-            normalize: transform.cast::<GpuScalar>().to_3d().to_array(),
+            normalize: transform.to_cols_array(),
         }
     }
 }
